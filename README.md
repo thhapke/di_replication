@@ -103,10 +103,13 @@ The test table generation and verification still needs some manual steps. For a 
 
 
 
+## Performance
 
-  
+* 1 pipeline on Standard DI - Node 
+*  HANA as a Service to ADL
+* 10 Tables with 1M changes each and packages of 10 000 records
 
-                 
+-> 15min
 
 
 
