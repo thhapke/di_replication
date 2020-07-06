@@ -34,4 +34,79 @@ Because the *HANA Client Operator* is not passing the message attributes (It rec
 
 
 ## Parallelization
-The pipeline is designed to run through a loop of all provided tables and process one packageID. That means one pipeline can cover as many tables as been given throughn the tables table provided to the 'Table Dispatcher'-operator. The replication process could be accelerated by processing multiple table at once. This means that up to the number of tables messages are send through the pipeline shortly one after the other and it is not been waited until a table package has been processed entirely. This results into a 40% performance gain. 
+The pipeline is designed to run through a loop of all provided tables and process one packageID in each step. That means one pipeline can cover as many tables as been given by the 'tables'-table provided to the 'Table Dispatcher'-operator. The replication process can be accelerated by processing multiple table at once. This means that up to the number of tables, messages are being sent through the pipeline shortly one after the other and it is not been waited until a table package has been processed entirely. This results into a 40% performance gain. 
+
+## Graph
+The graph looks quite complex and and long but it is when you break it up into the basic steps described in the section "General Process". 
+![graph](./images/graph.png).
+
+The 4 sql-statments have the same structure and consists of the
+
+* **ql-statement producers** ('repl\_reset', 'repl\_block', 'repl\_select' and 'repl\_complete
+* **SAP HANA Client** operator
+* **merge attributes** operator
+
+![sql-statement](./images/sql-statements.png)
+
+it is easy to comprehend. 
+
+The code of the sql-statement producer are all quite similiar and the core of it is the generated sql-statement code: 
+
+```
+    update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
+                 '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
+                 '\"DIREPL_PACKAGEID\" = (SELECT min(\"DIREPL_PACKAGEID\") ' \
+                 'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'\
+				.format(table=att['table'], pid = pid,ct = change_type)
+```
+
+For an on-the-fly logging all operators catch the logging-statements and send it to a log-outport. All log-outputs are collected with an **Multiplexer** and funneld to a **wiretap**-operator.
+
+Within one loop all the attributes carry the information that is needed to process the replication of on package of one table. Due to the parallel processing it is quite important to take care of the 'shared-by-reference' concept of python. In particular you have to hard copy each message.attribute before passing to the next step. Due to my laziness in this respect I first got literally a mixed result - files containing data from the previous or next table. 
+
+## Operators
+
+All operators can be do either directly imported from the github folder [operator solution](./solution/operators/) or the source-code [operator src](./src/di_replication) first tested and modified outside of DI. Then you can either copy and paste the script to the unmodified imported operator or use my gensolution script to create the solution. 
+
+## Test
+
+To test the replication I have created HANA - Tables of the following structure: 
+
+```
+CREATE COLUMN TABLE "REPLICATION"."TEST_TABLE0"(
+	"INDEX" BIGINT,
+	"INT_NUM" BIGINT,
+	"DIREPL_PACKAGEID" BIGINT,
+	"DIREPL_PID" BIGINT,
+	"DIREPL_UPDATED" LONGDATE,
+	"DIREPL_STATUS" NVARCHAR(1),
+	"DIREPL_TYPE" NVARCHAR(1),
+	PRIMARY KEY (
+		"INDEX",
+		"DIREPL_PACKAGEID"
+	)
+)
+
+```
+
+and written an operator that is generating test tables with the only parameters
+
+* number of rows
+* offset of the incremental numbers in the "INT_NUM" column. 
+
+With this simple structure and the comparison of the number of lines of the replicated csv-file and the sum of the "INT_NUM" columns I could verify the correctness of the replication. 
+
+![gentable](./images/gentest-graph.png)
+![gentable](./images/verification.png)
+
+The test table generation and verification still needs some manual steps. For a systematic test scenario some more automation might be needed. 
+
+
+
+
+  
+
+                 
+
+
+
