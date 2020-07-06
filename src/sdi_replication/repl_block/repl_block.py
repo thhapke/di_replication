@@ -43,15 +43,16 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
+            package_size = True
+            config_params['package_size'] = {'title': 'Package size',
+                                           'description': 'Size of the packages of each replication',
+                                           'type': 'integer'}
+
 
 def process(msg):
 
-    att = {} # do not copy the msg.attributes, because only ref not value is been used
+    att = dict(msg.attributes)
     att['operator'] = 'repl_block'
-    att['table'] = msg.attributes['table']
-    att['base_table'] = msg.attributes['base_table']
-    att['latency'] = msg.attributes['latency']
-    att['data_outcome'] = msg.attributes['data_outcome']
     #att['pid'] = msg.attributes['pid']
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
@@ -64,10 +65,12 @@ def process(msg):
     pid = int(random.random() * 100000000)
     att['pid'] = pid
 
+    change_type = 'I' if att['append_mode'] == True else 'U'
+
     update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
                  '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                  '\"DIREPL_PACKAGEID\" = (SELECT min(\"DIREPL_PACKAGEID\") ' \
-                 'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\')'.format(table=att['table'], pid = pid)
+                 'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'.format(table=att['table'], pid = pid,ct = change_type)
 
     logger.info('Update statement: {}'.format(update_sql))
     att['update_sql'] = update_sql

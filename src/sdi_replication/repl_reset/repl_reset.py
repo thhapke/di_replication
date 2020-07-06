@@ -45,12 +45,8 @@ except NameError:
 
 def process(msg):
 
-    att = {}
+    att = dict(msg.attributes)
     att['operator'] = 'repl_reset'
-    att['table'] = msg.attributes['table']
-    att['base_table'] = msg.attributes['base_table']
-    att['latency'] = msg.attributes['latency']
-    att['data_outcome'] = msg.attributes['data_outcome']
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     logger.info("Process started. Logging level: {}".format(logger.level))
