@@ -8,7 +8,7 @@ If there is a requirement to securely replicate a table to an object store this 
 The low storage cost of an object store is traded for less flexibility, more precisely you cannot as easily as with a database udpate changed data records to csv-files. My proposal is a 2-way approach: Changes are tagged as 'I' for inserts that can right away been appended to an CSV while for updates or deletes tagged as 'U' change-log files are stored and periodically are merged with the basic CSV file. 
 
 ## Replication Control Information
-In order to securely replicate data, additional control data is needed. This additional information could either be stored to **additional columns** of the data table or as a separate **shadow table** with a foreign key to the data table. The difference is just an additional sql-join. 
+In order to securely replicate data, additional control data is needed. This additional information could either be stored to **additional columns** of the data table or as a separate **shadow table** with a foreign key to the data table. Instead of providing a table a view with the joins could be provided.  
 
 The minimum replication controll data:
 
@@ -30,7 +30,35 @@ The general process is basically a sequence of **sql-statement** producer and **
 5. **Write-File** Writes data to the object store. This should be configured either as 'append' or as 'overwrite'. For the later the packageid should be part of the filename to keep the order of the changes. 
 5. **Complete** Sets the blocked packageids to 'complete'.
 
-Because the *HANA Client Operator* is not passing the message attributes (It receives only an sql-statement as string at the sql-inport) the attributes has been passed over this operators. The operator 'Merge Attributes' is just doing what the title promises.
+Because the *HANA Client Operator* is not passing the message attributes (It receives only an sql-statement as a string at the sql-inport) the attributes has been passed over to the next operators. The operator 'Merge Attributes' is just doing what the title promises and passed to the next 'executing' operator. 
+
+## Configuration
+The configuration of the replication process is rather simple. 
+
+### Input
+The input data are the tables/views to be replicated and they are provided by a table that consists at least of two columns: 
+
+* table name (including the schema)
+* latency (seconds)
+
+The latency determines the release on the package blocking due to the assumption that this is longer than the maximum of the process time for each package. 
+
+### Parameter
+The configuration 
+
+* **TABLES SQL** (Constant Generator) 
+	* SQL Statement for providing the tables that should be replicated
+* **Repl Table Dispatcher** (Python Custom Operator) 
+	* **Periodicity** Idle time between each loop iteration in case no table changes could be detected
+	* **Fraction of tables to parallelize** Instead of waiting until the replication of a table package has been processed, a number of packages can already funneled into the pipeline. The maximum number are restricted by the number of tables. Fraction of '1' means that packages run in parallel is the number of tables.
+	* **Roundtrips to stop** If this number of loops has been run through while no data has been processed the pipeline stops. This can be used to schedule the replication e.g. on an hourly basis. If there are no changes then no computing resources are used unnecessarily. In times of high data volume multiple replication pipelines can be started which stops when their duty has been fulfilled. 
+	*  **Insert ('I') or update ('U')** Determines if this pipeline is an "Appending" or a "Change-Log" one. This parameter is just an additional WHERE-constraint to the data selection. This has to correspond to the "Write File"-configuration. 
+* **Write-File** (Write File)
+	* **Connection** to the object store
+	* **Path Mode** if placeholders should be used. In particular usefull for writing the "Change-Log" files
+	* **Path** the location of the file. For the "Change-log"-type placeholders could be used like /replication/change_log/<header:base_replication_table>/<header:base_replication_table>_<header:packageid>.csv
+	* **Mode** Depending on the type of replication either Overwrite/Create or Append needs to be set. 
+
 
 
 ## Parallelization
@@ -89,18 +117,19 @@ CREATE COLUMN TABLE "REPLICATION"."TEST_TABLE0"(
 
 ```
 
-and written an operator that is generating test tables with the only parameters
+and written an operator that is generating test tables with the parameters
 
 * number of rows
 * offset of the incremental numbers in the "INT_NUM" column. 
 
-With this simple structure and the comparison of the number of lines of the replicated csv-file and the sum of the "INT_NUM" columns I could verify the correctness of the replication. 
+With this the validation is quite easy, just the comparison of the number of lines of the replicated csv-file and the sum of the "INT_NUM" columns.
 
 ![gentable](./images/gentest-graph.png)
 ![gentable](./images/verification.png)
 
 The test table generation and verification still needs some manual steps. For a systematic test scenario some more automation might be needed. 
 
+A pipeline crash have I simulated by randomly stop a pipeline and restart it. 
 
 
 ## Performance
@@ -111,5 +140,14 @@ The test table generation and verification still needs some manual steps. For a 
 
 -> 15min
 
+
+## Final Remarks
+
+### Package IDs
+My intuition tells be that the package IDs does not need to be provided through the preceding step. There might be an SQL-statement using the order of the "DIPREPL_UPDATED" timestamp and the TOP-modifier to do this on-the-fly. I have not been successful yet because ORDER BY and UPDATE cannot easily been used in HANA SQL. An additional sub-section SELECT with a join might solve the task. 
+
+### Table View with Shadow-Tables or SQL-JOIN Statements
+
+Instead of creating table views when having shadow-replication tables you could also adjust the 4 sql-statements. But in this case you need to provide for each table the primary keys what makes the setup far more complex than just creating table views. For this reason I decided against adding this as an option to the pipeline. 
 
 
