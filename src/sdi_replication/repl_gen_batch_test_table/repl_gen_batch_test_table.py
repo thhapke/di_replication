@@ -7,7 +7,7 @@ import subprocess
 import logging
 import os
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pandas as pd
 import numpy as np
 
@@ -81,10 +81,12 @@ def process(msg):
     df = pd.DataFrame(col1, columns=['INT_NUM']).reset_index()
     df.rename(columns={'index': 'INDEX'}, inplace=True)
     dt = datetime.now(timezone.utc)
-    df['DIREPL_UPDATED'] = dt.strftime("%Y-%m-%d %H:%M:%S")
+    df['DIREPL_UPDATED'] = df['INDEX']
     df['DIREPL_PID'] = 0
     df['DIREPL_STATUS'] = 'W'
     df['DIREPL_PACKAGEID'] = 0
+    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.utcnow())
+
 
     # packageid creation
     #packageid_start = int(random.random() * 10000)
@@ -128,12 +130,11 @@ def test_operator():
 if __name__ == '__main__':
     #test_operator()
     if True:
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version])
+        print(os.getcwd())
+        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version, \
+        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

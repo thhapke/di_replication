@@ -96,7 +96,7 @@ inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'csv', 'type': 'message', "description": "msg with csv"}]
 
-#api.set_port_callback(inports[0]['name'], process)
+api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
     api.config.off_set = 2
@@ -107,15 +107,4 @@ def test_operator():
     for st in api.queue :
         print(st.body)
 
-
-if __name__ == '__main__':
-    test_operator()
-    if True:
-        print(os.getcwd())
-        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
-        gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
-        solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
-                        "-t", solution_name])
-        subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

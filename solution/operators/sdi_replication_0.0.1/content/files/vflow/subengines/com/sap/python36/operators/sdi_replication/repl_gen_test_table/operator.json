@@ -1,5 +1,5 @@
 {
-    "description": "Generate Batch Test Tables",
+    "description": "Generate Test Table",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -21,16 +21,15 @@
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_gen_batch_test_table.configSchema.json",
-        "script": "file://repl_gen_batch_test_table.py",
+        "$type": "http://sap.com/vflow/sdi_replication.repl_gen_test_table.configSchema.json",
+        "script": "file://repl_gen_test_table.py",
         "debug_mode": true,
-        "num_rows": 100,
-        "package_size": 5,
-        "num_tables": 10,
-        "base_table_name": "\"REPLICATION\".\"TEST_TABLE\""
+        "off_set": 2,
+        "num_rows": 10,
+        "package_size": 5
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_gen_batch_test_table.svg"
+    "iconsrc": "repl_gen_test_table.svg"
 }
