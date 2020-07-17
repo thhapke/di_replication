@@ -107,7 +107,7 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'sql', 'type': 'string', "description": "sql statement"},
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
-#api.set_port_callback(inports[0]['name'], process)
+api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
     api.config.use_package_id = False
@@ -120,16 +120,4 @@ def test_operator():
     for st in api.queue :
         print(st)
 
-
-if __name__ == '__main__':
-    test_operator()
-    if True:
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version])
-        gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
-        solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version, \
-                        "-t", solution_name])
-        subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

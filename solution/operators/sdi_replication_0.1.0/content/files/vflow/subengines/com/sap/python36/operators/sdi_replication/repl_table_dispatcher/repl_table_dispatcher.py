@@ -74,10 +74,15 @@ def set_replication_tables(msg) :
     global repl_tables
     global first_call
     global num_batch
-    repl_tables = msg.body
+
+    # header = [c["name"] for c in msg.attributes['table']['columns']]
+    repl_tables = [{"TABLE": r[0], "LATENCY": r[1]} for r in msg.body]
+
     msg.attributes['num_tables'] = len(repl_tables)
     msg.attributes['data_outcome'] = True
     num_batch = int(api.config.parallelization * len(repl_tables))
+    if num_batch == 0 :
+        num_batch = 1
     msg.attributes['num_batches'] = num_batch
     process(msg)
 
@@ -137,6 +142,7 @@ def process(msg) :
     # parallelization
     #n Only needed when started. Then a new replication process is started whenever a table replication has been finished.
     if first_call :
+
         logger.debug('Parallelize: {} -> {}'.format(api.config.parallelization, num_batch))
         first_call = False
     else :
@@ -167,7 +173,7 @@ def process(msg) :
         log_stream.truncate()
 
 
-inports = [{'name': 'tables', 'type': 'message',"description":"List of tables"},
+inports = [{'name': 'tables', 'type': 'message.table',"description":"List of tables"},
            {'name': 'trigger', 'type': 'message',"description":"Trigger"}]
 outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
             {'name': 'trigger', 'type': 'message',"description":"trigger"},
@@ -183,10 +189,15 @@ def test_operator() :
     api.config.round_trips_to_stop = 1
     api.config.parallelization = 1
 
-    data = [{'TABLE':'repl_TABLE1', 'LATENCY':0},{'TABLE':'repl_TABLE2', 'LATENCY':0},{'TABLE':'repl_TABLE3', 'LATENCY':0},
-            {'TABLE':'repl_TABLE4', 'LATENCY':0},{'TABLE':'repl_TABLE5', 'LATENCY':0},{'TABLE':'repl_TABLE6', 'LATENCY':0}]
+    att = {"table":{"columns":[{"class":"string","name":"TABLE","nullable":False,"size":100,"type":{"hana":"NVARCHAR"}},\
+                               {"class":"integer","name":"LATENCY","nullable":True,"type":{"hana":"INTEGER"}}],"version":1}}
 
-    msg = api.Message(attributes={'tables':'test_tables'}, body=data)
+    data = [["REPLICATION.DOC_METADATA_REPL",0],["REPLICATION.TEXT_WORDS_REPL",2],["REPLICATION.WORD_INDEX_REPL",1],["REPLICATION.WORD_SENTIMENT_REPL",5]]
+
+    #data = [{'TABLE':'repl_TABLE1', 'LATENCY':0},{'TABLE':'repl_TABLE2', 'LATENCY':0},{'TABLE':'repl_TABLE3', 'LATENCY':0},
+    #        {'TABLE':'repl_TABLE4', 'LATENCY':0},{'TABLE':'repl_TABLE5', 'LATENCY':0},{'TABLE':'repl_TABLE6', 'LATENCY':0}]
+
+    msg = api.Message(attributes=att, body=data)
     set_replication_tables(msg)
 
     trigger = api.Message(attributes={'table':'test','data_outcome':False}, body='go')
