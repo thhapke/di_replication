@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-06/schema#",
-    "$id": "http://sap.com/vflow/sdi_replication.repl_gen_batch_test_table.configSchema.json",
+    "$id": "http://sap.com/vflow/sdi_replication.repl_create_test_tables.configSchema.json",
     "type": "object",
     "properties": {
         "codelanguage": {
@@ -14,15 +14,15 @@
             "description": "Sending debug level information to log port",
             "type": "boolean"
         },
-        "num_rows": {
-            "title": "Number of table rows",
-            "description": "Number of table rows",
-            "type": "integer"
+        "drop_tables": {
+            "title": "Drop Tables",
+            "description": "Drop tables - error if not existing.",
+            "type": "boolean"
         },
-        "package_size": {
-            "title": "Package size",
-            "description": "Package size",
-            "type": "integer"
+        "create_tables": {
+            "title": "Create Tables",
+            "description": "Create tables - error if existing.",
+            "type": "boolean"
         },
         "num_tables": {
             "title": "Number of tables",

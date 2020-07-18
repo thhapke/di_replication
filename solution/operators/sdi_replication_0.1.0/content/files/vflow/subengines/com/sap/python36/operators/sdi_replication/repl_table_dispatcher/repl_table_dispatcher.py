@@ -78,13 +78,12 @@ def set_replication_tables(msg) :
     # header = [c["name"] for c in msg.attributes['table']['columns']]
     repl_tables = [{"TABLE": r[0], "LATENCY": r[1]} for r in msg.body]
 
-    msg.attributes['num_tables'] = len(repl_tables)
-    msg.attributes['data_outcome'] = True
     num_batch = int(api.config.parallelization * len(repl_tables))
     if num_batch == 0 :
         num_batch = 1
-    msg.attributes['num_batches'] = num_batch
-    process(msg)
+
+    att = {'num_tables':len(repl_tables),'data_outcome':True,'num_batches':num_batch}
+    process(api.Message(attributes=att,body=repl_tables))
 
 def process(msg) :
 
@@ -158,16 +157,16 @@ def process(msg) :
         pointer = (pointer + 1) % len(repl_tables)
 
         att['latency'] = repl_table['LATENCY']
-        att['table'] = repl_table['TABLE']
+        att['repl_table'] = repl_table['TABLE']
         # split table from schema
         if '.' in repl_table['TABLE']  :
             att['base_table'] = repl_table['TABLE'].split('.')[1]
         else :
             att['base_table'] = repl_table['TABLE']
-        table_msg = api.Message(attributes= att,body = {'TABLE':att['table'],'LATENCY':att['latency']})
+        table_msg = api.Message(attributes= att,body = {'TABLE':att['repl_table'],'LATENCY':att['latency']})
         api.send(outports[1]['name'], table_msg)
 
-        logger.info('Dispatch table: {} ({})'.format(att['table'],time_monitor.elapsed_time()))
+        logger.info('Dispatch table: {} ({})'.format(att['repl_table'],time_monitor.elapsed_time()))
         api.send(outports[0]['name'], log_stream.getvalue())
         log_stream.seek(0)
         log_stream.truncate()

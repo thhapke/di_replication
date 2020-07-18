@@ -1,10 +1,10 @@
 {
-    "description": "Generate Test Table",
+    "description": "Populate Test Tables",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
             "name": "data",
-            "type": "message",
+            "type": "message.table",
             "description": "Input data"
         }
     ],
@@ -15,21 +15,20 @@
             "description": "Logging data"
         },
         {
-            "name": "csv",
-            "type": "message",
-            "description": "msg with csv"
+            "name": "table",
+            "type": "message.table",
+            "description": "msg with table"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_gen_test_table.configSchema.json",
-        "script": "file://repl_gen_test_table.py",
+        "$type": "http://sap.com/vflow/sdi_replication.repl_populate_test_tables.configSchema.json",
+        "script": "file://repl_populate_test_tables.py",
         "debug_mode": true,
-        "off_set": 2,
         "num_rows": 10,
         "package_size": 5
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_gen_test_table.svg"
+    "iconsrc": "repl_populate_test_tables.svg"
 }

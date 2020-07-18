@@ -56,14 +56,13 @@ def process(msg):
     data = msg.body
 
     update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'W\' WHERE  \"DIREPL_STATUS\" = \'B\' '\
-                 'AND \"DIREPL_UPDATED\" < ADD_SECONDS(CURRENT_UTCTIMESTAMP,-{latency}) '.format(table=att['table'],latency=att['latency'])
+                 'AND \"DIREPL_UPDATED\" < ADD_SECONDS(CURRENT_UTCTIMESTAMP,-{latency}) '.format(table=att['replication_table'],latency=att['latency'])
 
     logger.info('Update statement: {}'.format(update_sql))
     att['update_sql'] = update_sql
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
-    api.send(outports[1]['name'], update_sql)
-    api.send(outports[2]['name'], api.Message(attributes=att,body=update_sql))
+    api.send(outports[1]['name'], api.Message(attributes=att,body=update_sql))
 
     log = log_stream.getvalue()
     if len(log) > 0 :
@@ -72,14 +71,13 @@ def process(msg):
 
 inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'sql', 'type': 'string', "description": "sql statement"},
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
 
-    msg = api.Message(attributes={'table':'repl_table','base_table':'repl_table','latency':30,'data_outcome':True},body={'TABLE':'repl_table','LATENCY':20})
+    msg = api.Message(attributes={'replication_table':'repl_table','base_table':'repl_table','latency':30,'data_outcome':True},body={'TABLE':'repl_table','LATENCY':20})
     process(msg)
 
     for st in api.queue :
@@ -89,12 +87,10 @@ def test_operator():
 if __name__ == '__main__':
     test_operator()
     if True:
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version])
+        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version, \
+        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

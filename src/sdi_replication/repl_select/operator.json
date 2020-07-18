@@ -4,7 +4,7 @@
     "inports": [
         {
             "name": "trigger",
-            "type": "message",
+            "type": "message.table",
             "description": "Input data"
         }
     ],
@@ -13,11 +13,6 @@
             "name": "log",
             "type": "string",
             "description": "Logging data"
-        },
-        {
-            "name": "sql",
-            "type": "string",
-            "description": "sql statement"
         },
         {
             "name": "msg",

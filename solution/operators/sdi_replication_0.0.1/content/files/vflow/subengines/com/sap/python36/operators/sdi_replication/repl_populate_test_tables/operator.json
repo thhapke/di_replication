@@ -1,5 +1,5 @@
 {
-    "description": "Repl. Block",
+    "description": "Populate Test Tables",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -15,20 +15,20 @@
             "description": "Logging data"
         },
         {
-            "name": "msg",
-            "type": "message",
-            "description": "msg with sql statement"
+            "name": "table",
+            "type": "message.table",
+            "description": "msg with table"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_block.configSchema.json",
-        "script": "file://repl_block.py",
+        "$type": "http://sap.com/vflow/sdi_replication.repl_populate_test_tables.configSchema.json",
+        "script": "file://repl_populate_test_tables.py",
         "debug_mode": true,
-        "use_package_id": true,
-        "package_size": 1000
+        "num_rows": 10,
+        "package_size": 5
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_block.svg"
+    "iconsrc": "repl_populate_test_tables.svg"
 }

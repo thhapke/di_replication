@@ -34,10 +34,10 @@ except NameError:
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_gen_test_table'
-            operator_description = "Generate Test Table"
+            operator_name = 'repl_populate_test_tables'
+            operator_description = "Populate Test Tables"
 
-            operator_description_long = "Generates Test Table."
+            operator_description_long = "Create Test Tables."
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -46,10 +46,6 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-            offset = 1
-            config_params['off_set'] = {'title': 'Offset of the number column',
-                                           'description': 'Offset of the number column',
-                                           'type': 'integer'}
 
             num_rows = 100
             config_params['num_rows'] = {'title': 'Number of table rows',
@@ -63,49 +59,80 @@ except NameError:
 
 
 def process(msg):
-    att_dict = {'table': 'Gen_test', 'offset': api.config.off_set, 'num_rows': api.config.num_rows}
-    att_dict['operator'] = 'repl_gen_test_table'
-    logger, log_stream = slog.set_logging(att_dict['operator'], loglevel=api.config.debug_mode)
+    att = dict(msg.attributes)
+    att['operator'] = 'repl_populate_test_tables'
+    logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
-    logger.debug('Attributes: {}'.format(str(att_dict)))
+    logger.debug('Attributes: {}'.format(str(att)))
 
-    col1 = np.arange(0, api.config.num_rows)
+    # No further processing
+    if att['sql'] == 'DROP':
+        logger.info('Drop message - return 0')
+        return 0
+
+    att['table'] = att.pop('repl_table')
+
+    offset = att['message.batchIndex']
+    col1 = np.arange(offset, api.config.num_rows+offset)
     df = pd.DataFrame(col1, columns=['INT_NUM']).reset_index()
     df.rename(columns={'index': 'INDEX'}, inplace=True)
-    dt = datetime.now(timezone.utc)
-    df['DIREPL_UPDATED'] = df['INDEX']
+    df['DIREPL_UPDATED'] = 0
     df['DIREPL_PID'] = 0
     df['DIREPL_STATUS'] = 'W'
     df['DIREPL_PACKAGEID'] = 0
-    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.utcnow() + timedelta(milliseconds = x))
-
+    df['DIREPL_TYPE'] = 'I'
+    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.now(timezone.utc).isoformat())
 
     packageid_start = 0
     for i, start in enumerate(range(0, df.shape[0], api.config.package_size)):
         df.DIREPL_PACKAGEID.iloc[start:start + api.config.package_size] = packageid_start + i
 
-    csv = df.to_csv(sep=',', index=False)
+    logger.info('Create Table offset: {}'.format(i))
+    # csv = df.to_csv(sep=',', index=False)
+
+    # ensure the sequence of the table corresponds to attribute table:columns
+    df = df[['INDEX','INT_NUM','DIREPL_PACKAGEID','DIREPL_PID','DIREPL_UPDATED','DIREPL_STATUS','DIREPL_TYPE']]
+    table_data = df.values.tolist()
+
+    api.send(outports[1]['name'], api.Message(attributes=att, body=table_data))
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
     api.send(outports[0]['name'], log_stream.getvalue())
-    api.send(outports[1]['name'], api.Message(attributes=att_dict, body=csv))
 
-inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
+
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'csv', 'type': 'message', "description": "msg with csv"}]
+            {'name': 'table', 'type': 'message.table', "description": "msg with table"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
     api.config.off_set = 2
     api.config.num_rows = 10
-    msg = api.Message(attributes={'packageid':4711,'replication_table':'repl_table'},body='')
+    att_dict = {'sql':'CREATE','message.batchIndex':1,'message.lastBatch':False,'sql':'CREATE'}
+    att_dict['repl_table'] = {
+        "columns": [{"class": "integer", "name": "INDEX", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "INT_NUM", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "DIREPL_PACKAGEID", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "DIREPL_PID", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                    {"class": "timestamp", "name": "DIREPL_UPDATED", "nullable": True,
+                     "type": {"hana": "TIMESTAMP"}}, \
+                    {"class": "string", "name": "DIREPL_STATUS", "nullable": True, "size": 1,
+                     "type": {"hana": "NVARCHAR"}}, \
+                    {"class": "string", "name": "DIREPL_TYPE", "nullable": True, "size": 1,
+                     "type": {"hana": "NVARCHAR"}}], \
+        "version": 1, "name": 'test_table'}
+
+    msg = api.Message(attributes=att_dict,body='')
+
     process(msg)
 
     for st in api.queue :
+        print(st.attributes)
         print(st.body)
+
 
 
 if __name__ == '__main__':

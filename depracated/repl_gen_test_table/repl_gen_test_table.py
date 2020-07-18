@@ -34,10 +34,10 @@ except NameError:
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_gen_batch_test_table'
-            operator_description = "Generate Batch Test Tables"
+            operator_name = 'repl_gen_test_table'
+            operator_description = "Generate Test Table"
 
-            operator_description_long = "Generate Batch Test Tables."
+            operator_description_long = "Generates Test Table."
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -45,6 +45,11 @@ except NameError:
             config_params['debug_mode'] = {'title': 'Debug mode',
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
+
+            offset = 1
+            config_params['off_set'] = {'title': 'Offset of the number column',
+                                           'description': 'Offset of the number column',
+                                           'type': 'integer'}
 
             num_rows = 100
             config_params['num_rows'] = {'title': 'Number of table rows',
@@ -56,21 +61,10 @@ except NameError:
                                            'description': 'Package size',
                                            'type': 'integer'}
 
-            num_tables = 10
-            config_params['num_tables'] = {'title': 'Number of tables',
-                                           'description': 'Number of tables.',
-                                           'type': 'integer'}
-
-            base_table_name = '"REPLICATION"."TEST_TABLE"'
-            config_params['base_table_name'] = {'title': 'Base Table Name',
-                                           'description': 'Base Table Name.',
-                                           'type': 'string'}
-
 
 def process(msg):
-
-    att_dict = {}
-    att_dict['operator'] = 'repl_gen_batch_test_table'
+    att_dict = {'table': 'Gen_test', 'offset': api.config.off_set, 'num_rows': api.config.num_rows}
+    att_dict['operator'] = 'repl_gen_test_table'
     logger, log_stream = slog.set_logging(att_dict['operator'], loglevel=api.config.debug_mode)
 
     logger.info("Process started. Logging level: {}".format(logger.level))
@@ -85,31 +79,18 @@ def process(msg):
     df['DIREPL_PID'] = 0
     df['DIREPL_STATUS'] = 'W'
     df['DIREPL_PACKAGEID'] = 0
-    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.utcnow())
+    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.utcnow() + timedelta(milliseconds = x))
 
 
-    # packageid creation
-    #packageid_start = int(random.random() * 10000)
-
-    att_dict['hana.preparedStatement'] = "INSERT INTO {} VALUES".format(api.config.base_table_name+str(0))
     packageid_start = 0
     for i, start in enumerate(range(0, df.shape[0], api.config.package_size)):
         df.DIREPL_PACKAGEID.iloc[start:start + api.config.package_size] = packageid_start + i
 
-    logger.info('Create Table offset: 0')
     csv = df.to_csv(sep=',', index=False)
-    api.send(outports[1]['name'], api.Message(attributes=att_dict, body=csv))
-
-    for i in range (1,api.config.num_tables) :
-        df['INT_NUM'] = df['INT_NUM'] + 1
-        logger.info('Create Table offset: {}'.format(i))
-        csv = df.to_csv(sep=',', index=False)
-        att_dict['hana.preparedStatement'] = "INSERT INTO {} VALUES".format(api.config.base_table_name + str(i))
-        api.send(outports[1]['name'], api.Message(attributes=att_dict, body=csv))
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
     api.send(outports[0]['name'], log_stream.getvalue())
-
+    api.send(outports[1]['name'], api.Message(attributes=att_dict, body=csv))
 
 inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
@@ -128,9 +109,8 @@ def test_operator():
 
 
 if __name__ == '__main__':
-    #test_operator()
+    test_operator()
     if True:
-        print(os.getcwd())
         subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version

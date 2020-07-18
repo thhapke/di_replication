@@ -1,5 +1,5 @@
 {
-    "description": "Generate Batch Test Tables",
+    "description": "Create Test Tables",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -15,22 +15,22 @@
             "description": "Logging data"
         },
         {
-            "name": "csv",
+            "name": "sql",
             "type": "message",
-            "description": "msg with csv"
+            "description": "msg with sql"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_gen_batch_test_table.configSchema.json",
-        "script": "file://repl_gen_batch_test_table.py",
+        "$type": "http://sap.com/vflow/sdi_replication.repl_create_test_tables.configSchema.json",
+        "script": "file://repl_create_test_tables.py",
         "debug_mode": true,
-        "num_rows": 100,
-        "package_size": 5,
+        "drop_tables": true,
+        "create_tables": true,
         "num_tables": 10,
-        "base_table_name": "\"REPLICATION\".\"TEST_TABLE\""
+        "base_table_name": "REPLICATION.TEST_TABLE"
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_gen_batch_test_table.svg"
+    "iconsrc": "repl_create_test_tables.svg"
 }

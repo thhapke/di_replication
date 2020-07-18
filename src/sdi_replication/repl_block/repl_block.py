@@ -70,7 +70,7 @@ def process(msg):
         logger.error(err_str)
         raise ValueError(err_str)
 
-    logger.info('Replication table from attributes: {}'.format(att['table']))
+    logger.info('Replication table from attributes: {}'.format(att['replication_table']))
 
     att['pid'] = datetime.utcnow()
 
@@ -80,31 +80,31 @@ def process(msg):
         update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
                      '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                      '\"DIREPL_PACKAGEID\" = (SELECT min(\"DIREPL_PACKAGEID\") ' \
-                     'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'.format(table=att['table'], pid = att['pid'],ct = change_type)
+                     'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'\
+            .format(table=att['replication_table'], pid = att['pid'],ct = change_type)
     else :
         update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
                      '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                      '\"DIREPL_UPDATED\" <= (SELECT NTH_VALUE("DIREPL_UPDATED", {psize} ORDER BY "DIREPL_UPDATED" ASC) ' \
                      'FROM {table} WHERE "DIREPL_STATUS" = \'W\') ' \
                      'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'\
-            .format(table=att['table'], pid = att['pid'],ct = change_type,psize = api.config.package_size)
+            .format(table=att['replication_table'], pid = att['pid'],ct = change_type,psize = api.config.package_size)
 
     logger.info('Update statement: {}'.format(update_sql))
     att['update_sql'] = update_sql
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
 
-    api.send(outports[1]['name'], update_sql)
-    api.send(outports[2]['name'], api.Message(attributes=att,body=update_sql))
+    #api.send(outports[1]['name'], update_sql)
+    api.send(outports[1]['name'], api.Message(attributes=att,body=update_sql))
 
     log = log_stream.getvalue()
     if len(log) > 0 :
         api.send(outports[0]['name'], log )
 
 
-inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'sql', 'type': 'string', "description": "sql statement"},
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
 #api.set_port_callback(inports[0]['name'], process)
@@ -113,7 +113,7 @@ def test_operator():
     api.config.use_package_id = False
     api.config.package_size = 1
 
-    msg = api.Message(attributes={'packageid':4711,'table':'repl_table','base_table':'repl_table','latency':30,\
+    msg = api.Message(attributes={'packageid':4711,'replication_table':'repl_table','base_table':'repl_table','latency':30,\
                                   'append_mode' : 'I', 'data_outcome':True},body='')
     process(msg)
 
@@ -122,14 +122,12 @@ def test_operator():
 
 
 if __name__ == '__main__':
-    test_operator()
+    #test_operator()
     if True:
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version])
+        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version, \
+        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 
