@@ -6,8 +6,12 @@ import sdi_utils.tprogress as tp
 import subprocess
 import logging
 import os
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timezone, timedelta
 import pandas as pd
+import numpy as np
+
+pd.set_option('mode.chained_assignment',None)
 
 try:
     api
@@ -25,15 +29,16 @@ except NameError:
             if port == outports[1]['name']:
                 api.queue.append(msg)
 
+
         class config:
             ## Meta data
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_select'
-            operator_description = "Repl. Select"
+            operator_name = 'repl_add_test_tables'
+            operator_description = "Add Test Tables to Repository Table"
 
-            operator_description_long = "Creates SELECT SQL-statement for replication."
+            operator_description_long = "Add Test Tables to Repository Table (SQL Statement)"
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -42,48 +47,48 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-
+            latency = 180
+            config_params['latency'] = {'title': 'Latency',
+                                           'description': 'General latency for all test tables.',
+                                           'type': 'integer'}
 
 def process(msg):
 
     att = dict(msg.attributes)
-    att['operator'] = 'repl_select'
-
+    att['operator'] = 'repl_add_test_tables'
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
-    logger.debug('Attributes: {} - {}'.format(str(msg.attributes),str(att)))
 
-    select_sql = 'SELECT * FROM {table} WHERE \"DIREPL_STATUS\" = \'B\' AND  \"DIREPL_PID\" = \'{pid}\' '.\
-        format(table=att['replication_table'],pid= att['pid'])
-    att['select_sql'] = select_sql
-    msg = api.Message(attributes=att,body = select_sql)
+    att['table'] = {"columns": [{"class": "string", "name": "TABLE", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}, \
+                               {"class": "integer", "name": "LATENCY", "nullable": True, "type": {"hana": "BIGINT"}} ], \
+                   "version": 1}
 
-    logger.info('SELECT statement: {}'.format(select_sql))
+    rec = [[att['repl_table'],api.config.latency]]
+
+    api.send(outports[1]['name'], api.Message(attributes=att, body=rec))
+    api.send(outports[0]['name'], log_stream.getvalue())
+    log_stream.seek(0)
+    log_stream.truncate()
+
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
-    #api.send(outports[1]['name'], select_sql)
-    api.send(outports[1]['name'], msg)
-
-    log = log_stream.getvalue()
-    if len(log) > 0 :
-        api.send(outports[0]['name'], log )
+    api.send(outports[0]['name'], log_stream.getvalue())
 
 
-inports = [{'name': 'trigger', 'type': 'message.table', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'msg', 'type': 'message', "description": "message with sql statement"}]
+            {'name': 'data', 'type': 'message.table', "description": "data"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
-
-    msg = api.Message(attributes={'pid': 123123213, 'replication_table':'REPL_TABLE','base_table':'REPL_TABLE','latency':30,'data_outcome':True},body='')
+    msg = api.Message(attributes={'packageid':4711,'repl_table':'repl_table'},body='')
     process(msg)
 
-    for m in api.queue:
-        print('Attributes: \n{}'.format(m.attributes))
-        print('Body: \n{}'.format(m.body))
+    for st in api.queue :
+        print(st.attributes)
+        print(st.body)
 
 
 if __name__ == '__main__':

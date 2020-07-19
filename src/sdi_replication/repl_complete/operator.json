@@ -15,11 +15,6 @@
             "description": "Logging data"
         },
         {
-            "name": "sql",
-            "type": "string",
-            "description": "sql statement"
-        },
-        {
             "name": "msg",
             "type": "message",
             "description": "msg with sql statement"

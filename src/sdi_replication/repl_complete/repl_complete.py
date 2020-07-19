@@ -44,13 +44,8 @@ except NameError:
 
 def process(msg):
 
-    att = dict()
+    att = dict(msg.attributes)
     att['operator'] = 'repl_complete'
-    att['table'] = msg.attributes['table']
-    att['latency'] = msg.attributes['latency']
-    att['data_outcome'] = msg.attributes['data_outcome']
-    att['pid'] = msg.attributes['pid']
-    att['packageid'] = msg.attributes['packageid']
 
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
@@ -60,15 +55,15 @@ def process(msg):
 
     # The constraint of STATUS = 'B' due the case the record was updated in the meanwhile
     update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'C\', \"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
-                 '\"DIREPL_PACKAGEID\" = {packageid} AND \"DIREPL_STATUS\" = \'B\''.format(table=att['table'], packageid = att['packageid'])
+                 '\"DIREPL_PID\" = {pid} AND \"DIREPL_STATUS\" = \'B\''.format(table=att['table'], pid = att['pid'])
 
 
     logger.info('Update statement: {}'.format(update_sql))
     att['update_sql'] = update_sql
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
-    api.send(outports[1]['name'], update_sql)
-    api.send(outports[2]['name'], api.Message(attributes=att,body=update_sql))
+    #api.send(outports[1]['name'], update_sql)
+    api.send(outports[1]['name'], api.Message(attributes=att,body=update_sql))
 
     log = log_stream.getvalue()
     if len(log) > 0 :
@@ -77,7 +72,6 @@ def process(msg):
 
 inports = [{'name': 'data', 'type': 'message.file', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'sql', 'type': 'string', "description": "sql statement"},
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
 #api.set_port_callback(inports[0]['name'], process)
@@ -94,12 +88,10 @@ def test_operator():
 if __name__ == '__main__':
     test_operator()
     if True:
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version])
+        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_utils/solution/operators/sdi_utils_operators_' + api.config.version, \
+        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

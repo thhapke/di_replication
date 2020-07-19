@@ -161,6 +161,7 @@ def process(msg) :
         # split table from schema
         if '.' in repl_table['TABLE']  :
             att['base_table'] = repl_table['TABLE'].split('.')[1]
+            att['schema'] = repl_table['TABLE'].split('.')[0]
         else :
             att['base_table'] = repl_table['TABLE']
         table_msg = api.Message(attributes= att,body = {'TABLE':att['replication_table'],'LATENCY':att['latency']})
@@ -206,13 +207,10 @@ def test_operator() :
 if __name__ == '__main__':
     test_operator()
     if True:
-        print(os.getcwd())
-        subprocess.run(["rm", '-r',
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_replication/solution/operators/sdi_replication_' + api.config.version])
+        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",
-                        '/Users/d051079/OneDrive - SAP SE/GitHub/sdi_replication/solution/operators/sdi_replication_' + api.config.version, \
+        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 
