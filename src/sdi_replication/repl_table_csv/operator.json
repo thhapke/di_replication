@@ -29,7 +29,8 @@
         "$type": "http://sap.com/vflow/sdi_replication.repl_table_csv.configSchema.json",
         "script": "file://repl_table_csv.py",
         "debug_mode": true,
-        "drop_columns": "header2"
+        "drop_header": false,
+        "drop_columns": "None"
     },
     "tags": {
         "sdi_utils": ""

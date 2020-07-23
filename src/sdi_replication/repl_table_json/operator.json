@@ -1,11 +1,11 @@
 {
-    "description": "dict to csv",
+    "description": "table to json",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
-            "name": "dict",
-            "type": "message",
-            "description": "Input dict"
+            "name": "data",
+            "type": "message.table",
+            "description": "Input message with table"
         }
     ],
     "outports": [
@@ -17,7 +17,7 @@
         {
             "name": "csv",
             "type": "message.file",
-            "description": "Output csv string"
+            "description": "Output data as csv"
         },
         {
             "name": "error",
@@ -26,16 +26,12 @@
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_dict_csv.configSchema.json",
-        "script": "file://repl_dict_csv.py",
-        "debug_mode": true,
-        "separator": ",",
-        "bool_to_int": true,
-        "drop_replication_cols": true,
-        "drop_header": true
+        "$type": "http://sap.com/vflow/sdi_replication.repl_table_json.configSchema.json",
+        "script": "file://repl_table_json.py",
+        "debug_mode": true
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_dict_csv.svg"
+    "iconsrc": "repl_table_json.svg"
 }

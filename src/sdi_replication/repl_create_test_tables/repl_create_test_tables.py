@@ -48,16 +48,6 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-            drop_tables = True
-            config_params['drop_tables'] = {'title': 'Drop Tables',
-                                           'description': 'Drop tables - error if not existing.',
-                                           'type': 'boolean'}
-
-            create_tables = True
-            config_params['create_tables'] = {'title': 'Create Tables',
-                                           'description': 'Create tables - error if existing.',
-                                           'type': 'boolean'}
-
             num_tables = 10
             config_params['num_tables'] = {'title': 'Number of tables',
                                            'description': 'Number of tables.',
@@ -83,42 +73,42 @@ def process(msg):
         lastbatch = False if not i == api.config.num_tables - 1 else True
 
         ### DROP
-        if api.config.drop_tables :
-            att_drop = {'table':{'name':table_name},'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':'DROP'}
-            logger.info("Drop table:")
-            drop_sql = "DROP TABLE {table}".format(table = table_name)
-            api.send(outports[1]['name'], api.Message(attributes=att_drop, body=drop_sql))
-            api.send(outports[0]['name'], log_stream.getvalue())
-            log_stream.seek(0)
-            log_stream.truncate()
+
+        att_drop = {'table':{'name':table_name},'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':'DROP'}
+        logger.info("Drop table:")
+        drop_sql = "DROP TABLE {table}".format(table = table_name)
+        api.send(outports[1]['name'], api.Message(attributes=att_drop, body=drop_sql))
+        api.send(outports[0]['name'], log_stream.getvalue())
+        log_stream.seek(0)
+        log_stream.truncate()
 
         ### CREATE
-        if api.config.create_tables :
-            logger.info('Create Table: ')
-            att_create = {'repl_table': \
-                          {"columns": [{"class": "integer", "name": "INDEX", "nullable": False, "type": {"hana": "BIGINT"}}, \
-                                       {"class": "integer", "name": "INT_NUM", "nullable": True, "type": {"hana": "BIGINT"}}, \
-                                       {"class": "integer", "name": "DIREPL_PACKAGEID", "nullable": False, "type": {"hana": "BIGINT"}}, \
-                                       {"class": "integer", "name": "DIREPL_PID", "nullable": True, "type": {"hana": "BIGINT"}}, \
-                                       {"class": "timestamp", "name": "DIREPL_UPDATED", "nullable": True,"type": {"hana": "TIMESTAMP"}}, \
-                                       {"class": "string", "name": "DIREPL_STATUS", "nullable": True, "size": 1,"type": {"hana": "NVARCHAR"}}, \
-                                       {"class": "string", "name": "DIREPL_TYPE", "nullable": True, "size": 1,"type": {"hana": "NVARCHAR"}}], \
-                           "version": 1, "name":table_name},'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':'CREATE'}
 
-            create_sql = "CREATE COLUMN TABLE {table} (\"INDEX\" BIGINT , \"INT_NUM\" BIGINT, "\
-                         "\"DIREPL_PACKAGEID\" BIGINT, \"DIREPL_PID\" BIGINT , \"DIREPL_UPDATED\" LONGDATE, " \
-                         "\"DIREPL_STATUS\" NVARCHAR(1), \"DIREPL_TYPE\" NVARCHAR(1), " \
-                         "PRIMARY KEY (\"INDEX\"));".format(table = table_name )
-            api.send(outports[1]['name'], api.Message(attributes=att_create, body=create_sql))
-            api.send(outports[0]['name'], log_stream.getvalue())
-            log_stream.seek(0)
-            log_stream.truncate()
+        logger.info('Create Table: ')
+        att_create = {'repl_table': \
+                      {"columns": [{"class": "integer", "name": "INDEX", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                                   {"class": "integer", "name": "INT_NUM", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                                   {"class": "integer", "name": "DIREPL_PACKAGEID", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                                   {"class": "integer", "name": "DIREPL_PID", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                                   {"class": "timestamp", "name": "DIREPL_UPDATED", "nullable": True,"type": {"hana": "TIMESTAMP"}}, \
+                                   {"class": "string", "name": "DIREPL_STATUS", "nullable": True, "size": 1,"type": {"hana": "NVARCHAR"}}, \
+                                   {"class": "string", "name": "DIREPL_TYPE", "nullable": True, "size": 1,"type": {"hana": "NVARCHAR"}}], \
+                       "version": 1, "name":table_name},'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':'CREATE'}
+
+        create_sql = "CREATE COLUMN TABLE {table} (\"INDEX\" BIGINT , \"INT_NUM\" BIGINT, "\
+                     "\"DIREPL_PACKAGEID\" BIGINT, \"DIREPL_PID\" BIGINT , \"DIREPL_UPDATED\" LONGDATE, " \
+                     "\"DIREPL_STATUS\" NVARCHAR(1), \"DIREPL_TYPE\" NVARCHAR(1), " \
+                     "PRIMARY KEY (\"INDEX\"));".format(table = table_name )
+        api.send(outports[1]['name'], api.Message(attributes=att_create, body=create_sql))
+        api.send(outports[0]['name'], log_stream.getvalue())
+        log_stream.seek(0)
+        log_stream.truncate()
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
     api.send(outports[0]['name'], log_stream.getvalue())
 
 
-inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'sql', 'type': 'message', "description": "msg with sql"}]
 

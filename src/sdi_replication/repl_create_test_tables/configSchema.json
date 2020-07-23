@@ -14,16 +14,6 @@
             "description": "Sending debug level information to log port",
             "type": "boolean"
         },
-        "drop_tables": {
-            "title": "Drop Tables",
-            "description": "Drop tables - error if not existing.",
-            "type": "boolean"
-        },
-        "create_tables": {
-            "title": "Create Tables",
-            "description": "Create tables - error if existing.",
-            "type": "boolean"
-        },
         "num_tables": {
             "title": "Number of tables",
             "description": "Number of tables.",

@@ -12,6 +12,9 @@ try:
     api
 except NameError:
     class api:
+
+        queue = list()
+
         class Message:
             def __init__(self,body = None,attributes = ""):
                 self.body = body
@@ -19,10 +22,7 @@ except NameError:
 
         def send(port,msg) :
             if port == outports[1]['name'] :
-                print('ATTRIBUTES: ')
-                print(msg.attributes)#
-                print('CSV-String: ')
-                print(msg.body)
+                api.queue.append(msg)
 
         class config:
             ## Meta data
@@ -38,13 +38,21 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
+            drop_header = False
+            config_params['drop_header'] = {'title': 'Drop header',
+                                           'description': 'Drop header (not only for the first run).',
+                                           'type': 'boolean'}
+
             drop_columns = 'None'
             config_params['drop_columns'] = {'title': 'Drop Columns',
                                            'description': 'List of columns to drop.',
                                            'type': 'string'}
 
+list_headers = set()
 
 def process(msg):
+
+    global list_dicts
 
     att = dict(msg.attributes)
     att['operator'] = 'repl_table_csv'
@@ -70,11 +78,27 @@ def process(msg):
 
     att['data_outcome'] = True
 
-    csv = df.to_csv(index=False)
+    # always sort the columns alphabetically because DB columns do not have an order
+    df = df.reindex(sorted(df.columns), axis=1)
+
+    # drop headers if it is part of multiple calls (key: table name and cols)
+    if api.config.drop_header :
+        data_str = df.to_csv(index=False,header=False)
+    else :
+        if 'base_table' in att :
+            col_str = att['base_table'] + '-' + ' '.join(df.columns.tolist())
+        else:
+            col_str = att['table_name'] + '-' + ' '.join(df.columns.tolist())
+        if col_str in list_headers :
+            data_str = df.to_csv(index=False,header=False)
+        else :
+            data_str = df.to_csv(index=False)
+            list_headers.add(col_str)
+
     att["file"] =  {"connection": {"configurationType": "Connection Management", "connectionID": "unspecified"}, \
                     "path": "open", "size": 0}
 
-    msg = api.Message(attributes=att,body = csv)
+    msg = api.Message(attributes=att,body = data_str)
     api.send(outports[1]['name'],msg)
 
     api.send(outports[0]['name'], log_stream.getvalue())
@@ -90,17 +114,20 @@ outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
 
 def test_operator() :
 
-    api.config.debug_mode = True
-    api.config.drop_columns = "header2"
-
     attributes = {"table":{"columns":[{"class":"string","name":"header1","nullable":True,"size":80,"type":{"hana":"NVARCHAR"}},
                                       {"class":"string","name":"header2","nullable":True,"size":3,"type":{"hana":"NVARCHAR"}},
                                       {"class":"string","name":"header3","nullable":True,"size":10,"type":{"hana":"NVARCHAR"}}],
-                           "name":"test.table","version":1}}
+                           "name":"test.table","version":1}, 'base_table':'TABLE'}
     table = [ [(j*3 + i) for i in range(0,3)] for j in range (0,5)]
     msg = api.Message(attributes=attributes, body=table)
     print(table)
     process(msg)
+    process(msg)
+    process(msg)
+
+    for m in api.queue :
+        print(m.body)
+
 
 
 if __name__ == '__main__':

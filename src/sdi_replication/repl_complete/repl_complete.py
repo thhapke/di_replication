@@ -55,7 +55,7 @@ def process(msg):
 
     # The constraint of STATUS = 'B' due the case the record was updated in the meanwhile
     update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'C\', \"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
-                 '\"DIREPL_PID\" = {pid} AND \"DIREPL_STATUS\" = \'B\''.format(table=att['table'], pid = att['pid'])
+                 '\"DIREPL_PID\" = {pid} AND \"DIREPL_STATUS\" = \'B\''.format(table=att['replication_table'], pid = att['pid'])
 
 
     logger.info('Update statement: {}'.format(update_sql))

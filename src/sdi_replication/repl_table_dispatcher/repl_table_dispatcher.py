@@ -167,7 +167,7 @@ def process(msg) :
         table_msg = api.Message(attributes= att,body = {'TABLE':att['replication_table'],'LATENCY':att['latency']})
         api.send(outports[1]['name'], table_msg)
 
-        logger.info('Dispatch table: {} ({})'.format(att['replication_tabl'],time_monitor.elapsed_time()))
+        logger.info('Dispatch table: {} ({})'.format(att['replication_table'],time_monitor.elapsed_time()))
         api.send(outports[0]['name'], log_stream.getvalue())
         log_stream.seek(0)
         log_stream.truncate()

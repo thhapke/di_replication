@@ -4,7 +4,7 @@
     "inports": [
         {
             "name": "data",
-            "type": "message",
+            "type": "message.table",
             "description": "Input data"
         }
     ],
@@ -24,8 +24,6 @@
         "$type": "http://sap.com/vflow/sdi_replication.repl_create_test_tables.configSchema.json",
         "script": "file://repl_create_test_tables.py",
         "debug_mode": true,
-        "drop_tables": true,
-        "create_tables": true,
         "num_tables": 10,
         "base_table_name": "REPLICATION.TEST_TABLE"
     },

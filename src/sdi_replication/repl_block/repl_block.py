@@ -58,9 +58,8 @@ def process(msg):
 
     att = dict(msg.attributes)
     att['operator'] = 'repl_block'
-    #att['pid'] = msg.attributes['pid']
-    logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
+    logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
     logger.debug('Attributes: {}'.format(str(dict)))
@@ -72,7 +71,7 @@ def process(msg):
 
     logger.info('Replication table from attributes: {}'.format(att['replication_table']))
 
-    att['pid'] = datetime.utcnow()
+    att['pid'] = int(datetime.utcnow().timestamp())
 
     change_type = 'I' if att['append_mode'] == True else 'U'
 
@@ -87,7 +86,6 @@ def process(msg):
                      '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                      '\"DIREPL_UPDATED\" <= (SELECT NTH_VALUE("DIREPL_UPDATED", {psize} ORDER BY "DIREPL_UPDATED" ASC) ' \
                      'FROM {table} WHERE "DIREPL_STATUS" = \'W\') ' \
-                     'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'{ct}\')'\
             .format(table=att['replication_table'], pid = att['pid'],ct = change_type,psize = api.config.package_size)
 
     logger.info('Update statement: {}'.format(update_sql))
@@ -117,12 +115,13 @@ def test_operator():
                                   'append_mode' : 'I', 'data_outcome':True},body='')
     process(msg)
 
-    for st in api.queue :
-        print(st)
+    for msg in api.queue :
+        print(msg.attributes)
+        print(msg.body)
 
 
 if __name__ == '__main__':
-    #test_operator()
+    test_operator()
     if True:
         subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)

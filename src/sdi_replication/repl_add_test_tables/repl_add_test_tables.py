@@ -61,11 +61,13 @@ def process(msg):
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
 
+    rec = [[att['table']['name'],api.config.latency]]
+
     att['table'] = {"columns": [{"class": "string", "name": "TABLE", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}, \
                                {"class": "integer", "name": "LATENCY", "nullable": True, "type": {"hana": "BIGINT"}} ], \
                    "version": 1}
 
-    rec = [[att['repl_table'],api.config.latency]]
+
 
     api.send(outports[1]['name'], api.Message(attributes=att, body=rec))
     api.send(outports[0]['name'], log_stream.getvalue())
@@ -83,7 +85,7 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
-    msg = api.Message(attributes={'packageid':4711,'repl_table':'repl_table'},body='')
+    msg = api.Message(attributes={'packageid':4711,'repl_table':{'name':'repl_table'}},body='')
     process(msg)
 
     for st in api.queue :

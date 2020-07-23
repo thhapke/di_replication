@@ -65,7 +65,7 @@ def process(msg):
                                {"class": "integer", "name": "LATENCY", "nullable": True, "type": {"hana": "BIGINT"}} ], \
                    "version": 1}
 
-    rec = [[att['repl_table'],api.config.latency]]
+    rec = [[att['repl_table']['name'],api.config.latency]]
 
     api.send(outports[1]['name'], api.Message(attributes=att, body=rec))
     api.send(outports[0]['name'], log_stream.getvalue())
@@ -76,14 +76,14 @@ def process(msg):
     api.send(outports[0]['name'], log_stream.getvalue())
 
 
-inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'data', 'type': 'message.table', "description": "data"}]
 
 api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
-    msg = api.Message(attributes={'packageid':4711,'repl_table':'repl_table'},body='')
+    msg = api.Message(attributes={'packageid':4711,'repl_table':{'name':'repl_table'}},body='')
     process(msg)
 
     for st in api.queue :

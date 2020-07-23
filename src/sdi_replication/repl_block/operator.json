@@ -24,8 +24,8 @@
         "$type": "http://sap.com/vflow/sdi_replication.repl_block.configSchema.json",
         "script": "file://repl_block.py",
         "debug_mode": true,
-        "use_package_id": true,
-        "package_size": 1000
+        "use_package_id": false,
+        "package_size": 1
     },
     "tags": {
         "sdi_utils": ""
