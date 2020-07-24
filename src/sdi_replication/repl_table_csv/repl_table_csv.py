@@ -66,6 +66,7 @@ def process(msg):
 
     drop_columns = tfp.read_list(api.config.drop_columns)
     if drop_columns :
+        logger.info('Drop columns: {}'.format(drop_columns))
         df = df.drop(columns = drop_columns)
 
     if df.shape[0] == 0  :

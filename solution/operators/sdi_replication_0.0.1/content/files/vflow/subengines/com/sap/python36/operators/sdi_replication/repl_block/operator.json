@@ -1,10 +1,10 @@
 {
-    "description": "Update consistency",
+    "description": "Repl. Block",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
             "name": "data",
-            "type": "message.*",
+            "type": "message.table",
             "description": "Input data"
         }
     ],
@@ -21,12 +21,14 @@
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_consistency_update.configSchema.json",
-        "script": "file://repl_consistency_update.py",
-        "debug_mode": true
+        "$type": "http://sap.com/vflow/sdi_replication.repl_block.configSchema.json",
+        "script": "file://repl_block.py",
+        "debug_mode": true,
+        "use_package_id": false,
+        "package_size": 1000
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_consistency_update.svg"
+    "iconsrc": "repl_block.svg"
 }

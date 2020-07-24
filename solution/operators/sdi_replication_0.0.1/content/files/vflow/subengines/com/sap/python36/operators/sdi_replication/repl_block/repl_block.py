@@ -74,22 +74,22 @@ def process(msg):
     att['pid'] = int(datetime.utcnow().timestamp()) * 1000 + random.randint(0,1000)
 
     if att['append_mode'] == True :
-        wheresnippet = " \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'I\'"
+        wheresnippet = "\"DIREPL_TYPE\" = \'I\'"
     else :
-        wheresnippet = " \"DIREPL_STATUS\" = \'W\' AND (\"DIREPL_TYPE\" = \'U\' OR \"DIREPL_TYPE\" = \'D\' ) "
+        wheresnippet = " (\"DIREPL_TYPE\" = \'U\' OR \"DIREPL_TYPE\" = \'D\' ) "
 
-    if  api.config.use_package_id :
+    if not api.config.use_package_id :
         update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
                      '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                      '\"DIREPL_PACKAGEID\" = (SELECT min(\"DIREPL_PACKAGEID\") ' \
-                     'FROM {table} WHERE  {ws}) AND {ws}' \
+                     'FROM {table} WHERE \"DIREPL_STATUS\" = \'W\' AND {ws})'\
             .format(table=att['replication_table'], pid = att['pid'],ws = wheresnippet)
     else :
         raise ValueError('Not implemented yet')
         update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
                      '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
                      '\"DIREPL_UPDATED\" <= (SELECT NTH_VALUE("DIREPL_UPDATED", {psize} ORDER BY "DIREPL_UPDATED" ASC) ' \
-                     'FROM {table} WHERE {ws} ) AND {ws} ' \
+                     'FROM {table} WHERE "DIREPL_STATUS" = \'W\' AND {ws} ) ' \
             .format(table=att['replication_table'], pid = att['pid'],ws = wheresnippet,psize = api.config.package_size)
 
     logger.info('Update statement: {}'.format(update_sql))
@@ -109,7 +109,7 @@ inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
-#api.set_port_callback(inports[0]['name'], process)
+api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
 
@@ -121,14 +121,4 @@ def test_operator():
         print(msg.attributes)
         print(msg.body)
 
-
-if __name__ == '__main__':
-    test_operator()
-    if True:
-        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
-        gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
-        solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
-                        "-t", solution_name])
-        subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 

@@ -190,8 +190,8 @@ outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
             {'name': 'limit', 'type': 'message',"description":"limit"}]
 
 
-#api.set_port_callback(inports[1]['name'], process)
-#api.set_port_callback(inports[0]['name'], set_replication_tables)
+api.set_port_callback(inports[1]['name'], process)
+api.set_port_callback(inports[0]['name'], set_replication_tables)
 
 def test_operator() :
 
@@ -214,16 +214,4 @@ def test_operator() :
     trigger = api.Message(attributes={'table':'test','data_outcome':False}, body='go')
     for i in range(0,20) :
         process(trigger)
-
-if __name__ == '__main__':
-    test_operator()
-    if True:
-        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
-        gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
-        solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
-                        "-t", solution_name])
-        subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
-
-
 

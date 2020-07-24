@@ -2,6 +2,7 @@ import io
 import subprocess
 import os
 import pandas as pd
+import io
 
 import sdi_utils.gensolution as gs
 import sdi_utils.set_logging as slog
@@ -54,7 +55,11 @@ def process(msg_check, msg_data):
     header.insert(0, 'SOURCE')
     profile_data = msg_check.body[0]
     profile_data.insert(0, 'table')
-    df = msg_data.body
+
+    ## read csv
+    csv_io = io.BytesIO(msg_data.body)
+    df = pd.read_csv(csv_io)
+    #df = msg_data.body
 
     df_check = pd.DataFrame([profile_data], columns=header)
     num_rows = df.shape[0]
@@ -91,7 +96,7 @@ def process(msg_check, msg_data):
     api.send(outports[0]['name'], log_stream.getvalue())
 
 inports = [{'name': 'check', 'type': 'message.table', "description": "Input Check"}, \
-           {'name': 'data', 'type': 'message.DataFrame', "description": "Input message"}]
+           {'name': 'data', 'type': 'message.file', "description": "Input message"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'csv', 'type': 'message.file', "description": "Output data as csv"}]
 
@@ -112,7 +117,9 @@ def test_operator() :
     msg_check = api.Message(attributes=att_check,body=body_check)
 
     att_data = {'format':'DataFrame'}
-    body_data = pd.DataFrame([[0,1,'2020-07-14'],[1,2,'2020-07-15'],[0,3,'2020-07-16']], columns = ['INDEX','INT_NUM','DIREPL_UPDATED'] )
+
+    body_data = b"INDEX,INT_NUM,DIREPL_UPDATED\n0,1,'2020-07-14\n1,2,'2020-07-15'\n0,3,'2020-07-16"
+    #body_data = pd.DataFrame([[0,1,'2020-07-14'],[1,2,'2020-07-15'],[0,3,'2020-07-16']], columns = ['INDEX','INT_NUM','DIREPL_UPDATED'] )
     msg_body = api.Message(attributes=att_data,body = body_data)
 
     process(msg_check,msg_body)
