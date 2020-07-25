@@ -1,7 +1,8 @@
 import io
 
 import os
-import time
+import re
+import json
 
 import subprocess
 
@@ -34,18 +35,20 @@ except NameError:
 
             operator_description = "Repl. Collect Files"
             operator_name = 'repl_collect_files'
-            operator_description_long = "Collect files and send a list."
+            operator_description_long = "Collect files and send a dict."
             add_readme = dict()
             debug_mode = True
             config_params['debug_mode'] = {'title': 'Debug mode',
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-files_collector = list()
+table_collector = dict()
+num_tables = 0
+num_files = 0
 
 
 def process(msg):
-    global files_collector
+    global table_collector
 
     att = dict(msg.attributes)
     att['operator'] = 'repl_collect_files'
@@ -54,18 +57,41 @@ def process(msg):
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
 
-    att['base_name'] = os.path.basename(att['file']['path'])
+    dir_name = os.path.dirname(att['file']['path'])
+    filename = os.path.basename(att['file']['path'])
+    schema_name = os.path.basename(os.path.dirname(dir_name))
+    table_name = os.path.basename(dir_name)
 
-    if 'primary_keys.csv' in att['base_name'] or 'ccheck.csv' in att['base_name']  :
-        logger.info('Filename contains \"primary_keys.csv\" or \"ccheck.csv\"- skipped ({})'.format(att['base_name']))
-    else:
-        files_collector.append(msg)
-        logger.info('File collected: {}'.format(att['file']['path']))
+    ## constructor collector structure
+    if not schema_name in table_collector :
+        table_collector[schema_name] = dict()
+    if not table_name in table_collector[schema_name] :
+        table_collector[schema_name][table_name] = {'dir':dir_name,'update_files':[],'base_file':'', 'schema_name':schema_name,\
+                                                    'table_name':table_name,'key_file':'','consistency_file':'','misc':[]}
+
+
+    if filename == (table_name + '.csv') :
+        table_collector[schema_name][table_name]['base_file'] = filename
+    elif '_primary_keys.csv' in filename :
+        table_collector[schema_name][table_name]['primary_key_file'] = filename
+    elif '_ccheck.csv' in filename :
+        table_collector[schema_name][table_name]['consistency_file'] = filename
+    elif re.match('\d+_.*\.csv$',filename) :
+        table_collector[schema_name][table_name]['update_files'].append(filename)
+    else :
+        table_collector[schema_name][table_name]['misc'].append(filename)
+
+
+    logger.info('File collected: {}'.format(table_collector[schema_name][table_name]))
 
     if att['message.lastBatch'] == True:
-        logger.info('Send files collection. #Files: {}'.format(len(files_collector)))
+
+        # flat structure
+        files = [ b for a in list(table_collector.values()) for b in list(a.values())]
+
+        logger.info('Send table collector. #files: {}'.format(len(table_collector)))
         logger.info('Process ended - {}'.format(time_monitor.elapsed_time()))
-        msg = api.Message(attributes=att, body=files_collector)
+        msg = api.Message(attributes=att, body=files)
         api.send(outports[1]['name'], msg )
 
     api.send(outports[0]['name'], log_stream.getvalue())
@@ -80,27 +106,48 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 
 
 def test_operator():
-    file1 = {"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+    files = list()
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
                       "isDir": False, "modTime": "2020-07-21T10:13:01Z",
                       "path": "/replication/REPLICATION/TEST_TABLE_17/TEST_TABLE_17_primary_keys.csv", "size": 67}, \
-             "message.batchIndex": 39, "message.batchSize": 1, "message.lastBatch": False}
-    file2 = {"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+             "message.batchIndex": 39, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
                       "isDir": False, "modTime": "2020-07-21T10:10:04Z",
-                      "path": "/replication/REPLICATION/TEST_TABLE_17/TEST_TABLE_17_primary_keys.json", "size": 82}, \
-             "message.batchIndex": 40, "message.batchSize": 1, "message.lastBatch": False}
-    file3 = {"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "path": "/replication/REPLICATION/TEST_TABLE_17/TEST_TABLE_17.csv", "size": 82}, \
+             "message.batchIndex": 40, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "isDir": False, "modTime": "2020-07-21T10:10:04Z",
+                      "path": "/replication/REPLICATION/TEST_TABLE_17/12345_TEST_TABLE_17.csv", "size": 82}, \
+             "message.batchIndex": 40, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
                       "isDir": False, "modTime": "2020-07-21T10:05:56Z",
                       "path": "/replication/REPLICATION/TEST_TABLE_18/TEST_TABLE_18.csv", "size": 4891}, \
-             "message.batchIndex": 41, "message.batchSize": 1, "message.lastBatch": True}
+             "message.batchIndex": 41, "message.batchSize": 1, "message.lastBatch": True})
 
-    process(api.Message(attributes=file1, body=''))
-    process(api.Message(attributes=file2, body=''))
-    process(api.Message(attributes=file3, body=''))
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "isDir": False, "modTime": "2020-07-21T10:13:01Z",
+                      "path": "/replication/REPLICATION2/TEST_TABLE_17/TEST_TABLE_17_primary_keys.csv", "size": 67}, \
+             "message.batchIndex": 39, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "isDir": False, "modTime": "2020-07-21T10:10:04Z",
+                      "path": "/replication/REPLICATION2/TEST_TABLE_17/TEST_TABLE_17.csv", "size": 82}, \
+             "message.batchIndex": 40, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "isDir": False, "modTime": "2020-07-21T10:10:04Z",
+                      "path": "/replication/REPLICATION2/TEST_TABLE_17/12345_TEST_TABLE_17.csv", "size": 82}, \
+             "message.batchIndex": 40, "message.batchSize": 1, "message.lastBatch": False})
+    files.append({"file": {"connection": {"configurationType": "Connection Management", "connectionID": "ADL_THH"}, \
+                      "isDir": False, "modTime": "2020-07-21T10:05:56Z",
+                      "path": "/replication/REPLICATION2/TEST_TABLE_18/TEST_TABLE_18.csv", "size": 4891}, \
+             "message.batchIndex": 41, "message.batchSize": 1, "message.lastBatch": True})
+
+    for f in files :
+        process(api.Message(attributes=f, body=''))
+
 
     for m in api.queue:
         print(m.attributes)
-        for mi in m.body :
-            print(mi.body)
+        print(json.dumps(m.body,indent=4))
 
 
 if __name__ == '__main__':

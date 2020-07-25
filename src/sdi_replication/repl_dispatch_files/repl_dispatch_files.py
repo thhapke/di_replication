@@ -41,6 +41,26 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
+            file_path_att = 'P'
+            config_params['file_path_att'] = {'title': 'File Path Attribute (B/P/C)',
+                                           'description': 'Set File Path Attribute (B-ase/P-rimary Key/C-onsitency)',
+                                           'type': 'string'}
+
+            update_files_mandatory = True
+            config_params['update_files_mandatory'] = {'title': 'Update Files mandatory',
+                                           'description': 'Update files mandatory',
+                                           'type': 'boolean'}
+
+            base_file_mandatory = True
+            config_params['base_file_mandatory'] = {'title': 'Base File mandatory',
+                                           'description': 'Base file mandatory',
+                                           'type': 'boolean'}
+
+            primary_key_file_mandatory = True
+            config_params['primary_key_file_mandatory'] = {'title': 'Primary Key File mandatory',
+                                           'description': 'Primary key file mandatory',
+                                           'type': 'boolean'}
+
 
 
 files_list = list()
@@ -60,29 +80,68 @@ def process(msg) :
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     logger.info('Send Files counter {}/{}'.format(file_index, len(files_list)))
+    logger.debug(att)
 
     if len(files_list) == 0:
         err_statement = 'No files to process!'
         logger.error(err_statement)
         raise ValueError(err_statement)
 
-    if file_index == len(files_list):
-        logger.info('No files to process - ending pipeline')
-        api.send(outports[0]['name'], log_stream.getvalue())
-        api.send(outports[2]['name'], api.Message(attributes=att, body=None))
-        return 0
+    criteria_match = False
+    while (not criteria_match):
+        if file_index == len(files_list):
+            logger.info('No files to process - ending pipeline')
+            api.send(outports[0]['name'], log_stream.getvalue())
+            api.send(outports[2]['name'], api.Message(attributes=att, body=None))
+            return 0
 
-    files_list[file_index].attributes['message.batchIndex'] = file_index
-    files_list[file_index].attributes['message.lastBatch'] = False
+        file_path_att = api.config.file_path_att
+        if not file_path_att in 'CPB':
+            logger.error("File path attribute wrongly set (C or P or B) not  {}!".format(api.config.file_path_att))
+
+        fpa_criteria = True
+        if file_path_att == 'C' and len(files_list[file_index]['consistency_file']) > 0:
+            att['file']['path'] = os.path.join(files_list[file_index]['dir'], files_list[file_index]['consistency_file'])
+        elif file_path_att == 'P' and len(files_list[file_index]['primary_key_file']) > 0:
+            att['file']['path'] = os.path.join(files_list[file_index]['dir'], files_list[file_index]['primary_key_file'])
+        elif file_path_att == 'B' and len(files_list[file_index]['base_file']) > 0:
+            att['file']['path'] = os.path.join(files_list[file_index]['dir'], files_list[file_index]['base_file'])
+        else:
+            fpa_criteria = False
+
+        u_criteria = True
+        if len(files_list[file_index]['update_files']) == 0 and api.config.update_files_mandatory == True:
+            logger.warning('Update files mandatory, but not found: {}'.format(files_list[file_index]['dir']))
+            u_criteria = False
+
+        b_criteria = True
+        if len(files_list[file_index]['base_file']) == 0 and api.config.base_file_mandatory == True:
+            logger.warning('Base file mandatory, but not found: {}'.format(files_list[file_index]['dir']))
+            b_criteria = False
+
+        pk_criteria = True
+        if len(files_list[file_index]['base_file']) == 0 and api.config.base_file_mandatory == True:
+            logger.warning('Primary key file mandatory, but not found: {}'.format(files_list[file_index]['dir']))
+            pk_criteria = False
+
+        criteria_match = fpa_criteria or u_criteria or pk_criteria or b_criteria
+        if criteria_match == False :
+            file_index += 1
+
+    att['message.batchIndex'] = file_index
+    att['message.lastBatch'] = False
+
+    # sort update files
+    files_list[file_index]['update_files'] = sorted(files_list[file_index]['update_files'])
 
     # get table and schema from folder structure
-    file_path = files_list[file_index].attributes['file']['path']
-    files_list[file_index].attributes['table_name'] = os.path.basename(os.path.dirname(file_path))
-    files_list[file_index].attributes['schema_name'] = os.path.basename(os.path.dirname(os.path.dirname(file_path)))
+    att['table_name'] = files_list[file_index]['table_name']
+    att['schema_name'] = files_list[file_index]['schema_name']
+    att['current_file'] = files_list[file_index]
 
-    logger.info('Send File: {} ({}/{})'.format(att['file']['path'], file_index, len(files_list)))
-    api.send(outports[1]['name'], files_list[file_index])
-
+    logger.info('Send File: {} ({}/{})'.format(files_list[file_index]['schema_name'],files_list[file_index]['table_name'],\
+                                               file_index, len(files_list)))
+    api.send(outports[1]['name'], api.Message(attributes=att,body=files_list[file_index]))
     api.send(outports[0]['name'], log_stream.getvalue())
     file_index += 1
 
@@ -100,26 +159,59 @@ outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
 
 def test_operator() :
 
-    file1 = {"file":{"connection":{"configurationType":"Connection Management","connectionID":"ADL_THH"},\
-                     "isDir":False,"modTime":"2020-07-21T10:13:01Z","path":"/replication/REPLICATION/TEST_TABLE_17/TEST_TABLE_17.csv","size":67},\
-             "message.batchIndex":39,"message.batchSize":1,"message.lastBatch":False}
-    msg1 = api.Message(attributes=file1,body=file1)
-    file2 = {"file":{"connection":{"configurationType":"Connection Management","connectionID":"ADL_THH"},\
-                     "isDir":False,"modTime":"2020-07-21T10:10:04Z","path":"/replication/REPLICATION/TEST_TABLE_19/TEST_TABLE_19.csv","size":82},\
-             "message.batchIndex":40,"message.batchSize":1,"message.lastBatch":False}
-    msg2 = api.Message(attributes=file2, body=file2)
-    file3 = {"file":{"connection":{"configurationType":"Connection Management","connectionID":"ADL_THH"},\
-                     "isDir":False,"modTime":"2020-07-21T10:05:56Z","path":"/replication/REPLICATION/TEST_TABLE_18/TEST_TABLE_18.csv","size":4891},\
-             "message.batchIndex":41,"message.batchSize":1,"message.lastBatch":True}
-    msg3 = api.Message(attributes=file3, body=file3)
+    att = {'operator':'collect_files','file':{'path':'/adbd/abd.csv'}}
 
-    files = [msg1,msg2,msg3]
+    files = [
+        {
+            "dir": "/replication/REPLICATION/TEST_TABLE_17",
+            "update_files": [
+                "12345_TEST_TABLE_17.csv"
+            ],
+            "base_file": "TEST_TABLE_17.csv",
+            "schema_name": "REPLICATION",
+            "table_name": "TEST_TABLE_17",
+            "primary_key_file": "TEST_TABLE_17_primary_keys.csv",
+            "consistency_file": "",
+            "misc": []
+        },
+        {
+            "dir": "/replication/REPLICATION/TEST_TABLE_18",
+            "update_files": [],
+            "base_file": "TEST_TABLE_18.csv",
+            "schema_name": "REPLICATION",
+            "table_name": "TEST_TABLE_18",
+            "primary_key_file": "",
+            "consistency_file": "",
+            "misc": []
+        },
+        {
+            "dir": "/replication/REPLICATION2/TEST_TABLE_17",
+            "update_files": [
+                "12345_TEST_TABLE_17.csv"
+            ],
+            "base_file": "TEST_TABLE_17.csv",
+            "schema_name": "REPLICATION2",
+            "table_name": "TEST_TABLE_17",
+            "primary_key_file": "TEST_TABLE_17_primary_keys.csv",
+            "consistency_file": "",
+            "misc": []
+        },
+        {
+            "dir": "/replication/REPLICATION2/TEST_TABLE_18",
+            "update_files": [],
+            "base_file": "TEST_TABLE_18.csv",
+            "schema_name": "REPLICATION2",
+            "table_name": "TEST_TABLE_18",
+            "primary_key_file": "",
+            "consistency_file": "",
+            "misc": []
+        }
+    ]
 
 
-    on_files_process(api.Message(attributes=file1, body=files))
+    on_files_process(api.Message(attributes=att, body=files))
     for i in range(1,len(files)) :
-        process(api.Message(attributes=file1,body=''))
-
+        process(api.Message(attributes=att,body=''))
 
     for m in api.queue :
         print(m.attributes)

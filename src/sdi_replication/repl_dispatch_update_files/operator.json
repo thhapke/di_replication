@@ -1,5 +1,5 @@
 {
-    "description": "Repl. Dispatch Files",
+    "description": "Repl. Dispatch Update Files",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -23,24 +23,15 @@
             "name": "file",
             "type": "message.file",
             "description": "file"
-        },
-        {
-            "name": "limit",
-            "type": "message",
-            "description": "Limit"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_dispatch_files.configSchema.json",
-        "script": "file://repl_dispatch_files.py",
-        "debug_mode": true,
-        "file_path_att": "P",
-        "update_files_mandatory": true,
-        "base_file_mandatory": true,
-        "primary_key_file_mandatory": true
+        "$type": "http://sap.com/vflow/sdi_replication.repl_dispatch_update_files.configSchema.json",
+        "script": "file://repl_dispatch_update_files.py",
+        "debug_mode": true
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_dispatch_files.svg"
+    "iconsrc": "repl_dispatch_update_files.svg"
 }
