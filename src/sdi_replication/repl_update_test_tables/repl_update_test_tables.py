@@ -54,16 +54,24 @@ except NameError:
                                            'type': 'integer'}
 
 
+            max_random_num = 10000
+            config_params['max_random_num'] = {'title': 'Maximum Random Number',
+                                           'description': 'Maximum random number.',
+                                           'type': 'integer'}
 
 def process(msg):
 
     att = dict(msg.attributes)
     operator_name = 'repl_update_test_tables'
     logger, log_stream = slog.set_logging(operator_name, loglevel=api.config.debug_mode)
-    modulo_factor = api.config.modulo_factor
 
-    sql = 'UPDATE {table} SET \"INT_NUM\" =  \"INT_NUM\" + 1, \"DIREPL_TYPE\" = \'U\', \"DIREPL_STATUS\" =  \'W\' '  \
-          'WHERE MOD(\"INDEX\",{mf}) = 0'.format(table = att['replication_table'],mf = modulo_factor)
+    modulo_factor = api.config.modulo_factor
+    maxn = api.config.max_random_num
+    offset = random.randint(0,modulo_factor-1)
+
+    sql = 'UPDATE {table} SET \"INT_NUM\" = floor(RAND() * {maxn}), \"DIREPL_TYPE\" = \'U\', \"DIREPL_STATUS\" =  \'W\', '  \
+          ' \"DIREPL_UPDATED\" = CURRENT_UTCTIMESTAMP WHERE MOD(\"INDEX\",{mf}) = {of}' \
+        .format(table = att['replication_table'],maxn = maxn, mf= modulo_factor,of= offset)
 
     logger.info('SQL statement: {}'.format(sql))
     att['sql'] = sql

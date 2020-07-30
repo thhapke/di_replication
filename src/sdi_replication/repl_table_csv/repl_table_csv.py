@@ -43,6 +43,11 @@ except NameError:
                                            'description': 'Drop header (not only for the first run).',
                                            'type': 'boolean'}
 
+            only_header = False
+            config_params['only_header'] = {'title': 'Only header',
+                                           'description': 'Only header (for preparation purpose).',
+                                           'type': 'boolean'}
+
             drop_columns = 'None'
             config_params['drop_columns'] = {'title': 'Drop Columns',
                                            'description': 'List of columns to drop.',
@@ -57,9 +62,6 @@ def process(msg):
     att = dict(msg.attributes)
     att['operator'] = 'repl_table_csv'
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
-
-    logger.info("Process started")
-    time_monitor = tp.progress()
 
     header = [c["name"] for c in msg.attributes['table']['columns']]
     df = pd.DataFrame(msg.body,columns=header)
@@ -80,10 +82,17 @@ def process(msg):
     att['data_outcome'] = True
 
     # always sort the columns alphabetically because DB columns do not have an order
-    df = df.reindex(sorted(df.columns), axis=1)
+    df = df[sorted(df.columns)]
 
+    if api.config.drop_header and api.config.only_header :
+        err_stat = "Contradicting configuration - Drop header: {}  Only header: {}".format(api.config.drop_header, api.config.only_header)
+        raise ValueError(err_stat)
+
+    if api.config.only_header:
+        df = df.head(n= 0)
+        data_str = df.to_csv(index=False)
     # drop headers if it is part of multiple calls (key: table name and cols)
-    if api.config.drop_header :
+    elif api.config.drop_header :
         data_str = df.to_csv(index=False,header=False)
     else :
         if 'base_table' in att :
@@ -99,10 +108,13 @@ def process(msg):
     att["file"] =  {"connection": {"configurationType": "Connection Management", "connectionID": "unspecified"}, \
                     "path": "open", "size": 0}
 
+    logger.info('CSV-table: {}.{} ({} - {})'.format(att['schema_name'],att['table_name'],df.shape[0],df.shape[1]))
+
     msg = api.Message(attributes=att,body = data_str)
     api.send(outports[1]['name'],msg)
-
-    api.send(outports[0]['name'], log_stream.getvalue())
+    log = log_stream.getvalue()
+    if len(log)>0 :
+        api.send(outports[0]['name'], log_stream.getvalue())
 
 
 inports = [{'name': 'data', 'type': 'message.table',"description":"Input message with table"}]
@@ -114,6 +126,8 @@ outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator() :
+    #api.config.drop_header = False
+    #api.config.only_header = True
 
     attributes = {"table":{"columns":[{"class":"string","name":"header1","nullable":True,"size":80,"type":{"hana":"NVARCHAR"}},
                                       {"class":"string","name":"header2","nullable":True,"size":3,"type":{"hana":"NVARCHAR"}},

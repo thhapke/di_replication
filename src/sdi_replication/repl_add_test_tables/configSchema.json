@@ -13,11 +13,6 @@
             "title": "Debug mode",
             "description": "Sending debug level information to log port",
             "type": "boolean"
-        },
-        "latency": {
-            "title": "Latency",
-            "description": "General latency for all test tables.",
-            "type": "integer"
         }
     }
 }

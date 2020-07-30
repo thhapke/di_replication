@@ -23,8 +23,7 @@
     "config": {
         "$type": "http://sap.com/vflow/sdi_replication.repl_add_test_tables.configSchema.json",
         "script": "file://repl_add_test_tables.py",
-        "debug_mode": true,
-        "latency": 180
+        "debug_mode": true
     },
     "tags": {
         "sdi_utils": ""

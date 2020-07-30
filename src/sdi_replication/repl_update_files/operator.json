@@ -1,0 +1,37 @@
+{
+    "description": "Update Files",
+    "component": "com.sap.system.python3Operator",
+    "inports": [
+        {
+            "name": "data",
+            "type": "message.file",
+            "description": "Input Data as csv"
+        }
+    ],
+    "outports": [
+        {
+            "name": "log",
+            "type": "string",
+            "description": "Logging data"
+        },
+        {
+            "name": "csv",
+            "type": "message.file",
+            "description": "Output data as csv"
+        },
+        {
+            "name": "trigger",
+            "type": "message.file",
+            "description": "Trigger for next file"
+        }
+    ],
+    "config": {
+        "$type": "http://sap.com/vflow/sdi_replication.repl_update_files.configSchema.json",
+        "script": "file://repl_update_files.py",
+        "debug_mode": true
+    },
+    "tags": {
+        "sdi_utils": ""
+    },
+    "iconsrc": "repl_update_files.svg"
+}

@@ -18,6 +18,11 @@
             "title": "Modulo Factor",
             "description": "Change each row of modulo(factor) = '0'.",
             "type": "integer"
+        },
+        "max_random_num": {
+            "title": "Maximum Random Number",
+            "description": "Maximum random number.",
+            "type": "integer"
         }
     }
 }

@@ -30,6 +30,7 @@
         "script": "file://repl_table_csv.py",
         "debug_mode": true,
         "drop_header": false,
+        "only_header": false,
         "drop_columns": "None"
     },
     "tags": {

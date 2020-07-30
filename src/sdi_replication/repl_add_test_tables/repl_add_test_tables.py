@@ -47,10 +47,6 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-            latency = 180
-            config_params['latency'] = {'title': 'Latency',
-                                           'description': 'General latency for all test tables.',
-                                           'type': 'integer'}
 
 def process(msg):
 
@@ -61,13 +57,13 @@ def process(msg):
     logger.info("Process started. Logging level: {}".format(logger.level))
     time_monitor = tp.progress()
 
-    rec = [[att['table']['name'],api.config.latency]]
+    rec = [[att['table']['name'],'INDEX',datetime.now(timezone.utc).isoformat(),0]]
 
     att['table'] = {"columns": [{"class": "string", "name": "TABLE", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}, \
-                               {"class": "integer", "name": "LATENCY", "nullable": True, "type": {"hana": "BIGINT"}} ], \
+                                {"class": "string", "name": "CHECKSUM_COL", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}, \
+                                {"class": "timestamp", "name": "LATEST_CONSISTENCY_CHECK", "nullable": True, "type": {"hana": "TIMESTAMP"}} ,
+                                {"class": "integer", "name": "CONSISTENCY_CODE", "nullable": True,"type": {"hana": "INTEGER"}}], \
                    "version": 1}
-
-
 
     api.send(outports[1]['name'], api.Message(attributes=att, body=rec))
     api.send(outports[0]['name'], log_stream.getvalue())
@@ -85,7 +81,7 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
-    msg = api.Message(attributes={'packageid':4711,'repl_table':{'name':'repl_table'}},body='')
+    msg = api.Message(attributes={'packageid':4711,'table':{'name':'repl_table'}},body='')
     process(msg)
 
     for st in api.queue :

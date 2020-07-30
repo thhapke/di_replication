@@ -79,9 +79,6 @@ def process(msg) :
     att['operator'] = 'repl_dispatch_files'
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
-    logger.info('Send Files counter {}/{}'.format(file_index, len(files_list)))
-    logger.debug(att)
-
     if len(files_list) == 0:
         err_statement = 'No files to process!'
         logger.error(err_statement)

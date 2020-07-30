@@ -54,16 +54,16 @@ def process(msg):
     logger.debug('Attributes: {} - {}'.format(str(msg.attributes),str(att)))
 
     # The constraint of STATUS = 'B' due the case the record was updated in the meanwhile
-    update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'C\', \"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
-                 '\"DIREPL_PID\" = {pid} AND \"DIREPL_STATUS\" = \'B\''.format(table=att['replication_table'], pid = att['pid'])
+    sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'C\' WHERE  \"DIREPL_PID\" = {pid} AND \"DIREPL_STATUS\" = \'B\''.\
+        format(table=att['replication_table'], pid = att['pid'])
 
 
-    logger.info('Update statement: {}'.format(update_sql))
-    att['update_sql'] = update_sql
+    logger.info('Update statement: {}'.format(sql))
+    att['sql'] = sql
 
     logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
     #api.send(outports[1]['name'], update_sql)
-    api.send(outports[1]['name'], api.Message(attributes=att,body=update_sql))
+    api.send(outports[1]['name'], api.Message(attributes=att,body=sql))
 
     log = log_stream.getvalue()
     if len(log) > 0 :
@@ -78,7 +78,8 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 
 def test_operator():
 
-    msg = api.Message(attributes={'pid': 123123213, 'table':'REPL_TABLE','base_table':'REPL_TABLE','latency':30,'data_outcome':True,'packageid':1},body='')
+    msg = api.Message(attributes={'pid': 123123213, 'table':'REPL_TABLE','base_table':'REPL_TABLE','latency':30,\
+                                  'replication_table':'repl_table', 'data_outcome':True,'packageid':1},body='')
     process(msg)
 
     for st in api.queue :

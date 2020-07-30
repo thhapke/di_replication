@@ -48,10 +48,11 @@ except NameError:
                                            'description': 'Using Package ID rather than generated packages by package size',
                                            'type': 'boolean'}
 
-            package_size = 1000
-            config_params['package_size'] = {'title': 'Package size',
-                                           'description': 'Size of the packages of each replication',
-                                           'type': 'integer'}
+            change_types = 'UD'
+            config_params['change_types'] = {'title': 'Insert (\'I\'), update (\'U\'), delete (\'D\')' ,
+                                       'description': 'Insert (\'I\'), update (\'U\'), delete (\'D\')',
+                                       'type': 'string'}
+
 
 
 def process(msg):
@@ -60,45 +61,48 @@ def process(msg):
     att['operator'] = 'repl_block'
 
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
-    logger.info("Process started. Logging level: {}".format(logger.level))
-    time_monitor = tp.progress()
-    logger.debug('Attributes: {}'.format(str(dict)))
 
-    if not api.config.use_package_id and api.config.package_size <1 :
-        err_str = 'If not using DIREPL_PACKAGEID a package size >0 must be given in configuration'
-        logger.error(err_str)
-        raise ValueError(err_str)
+    replication_types = api.config.change_types
+    att['insert_type'] = True if 'I' in replication_types else False
+    att['update_type'] = True if 'U' in replication_types else False
+    att['delete_type'] = True if 'D' in replication_types else False
+    logger.info('Replication types set: Insert: {}  - Update: {}  - Delete {}'.\
+                format(att['insert_type'],att['update_type'],att['delete_type']))
 
-    logger.info('Replication table from attributes: {}'.format(att['replication_table']))
+    if not (att['insert_type'] or att['update_type'] or att['delete_type'] ):
+        err_stat = 'Replication not set properly: {} (Valid: I,U,D)'.format(replication_types)
+        logger.error(err_stat)
+        api.send(outports[0]['name'], log_stream.getvalue())
+        raise ValueError(err_stat)
+
+    logger.info('Replication table from attributes: {} {}'.format(att['schema_name'],att['table_name']))
 
     att['pid'] = int(datetime.utcnow().timestamp()) * 1000 + random.randint(0,1000)
 
-    if att['append_mode'] == True :
-        wheresnippet = " \"DIREPL_STATUS\" = \'W\' AND \"DIREPL_TYPE\" = \'I\'"
-    else :
-        wheresnippet = " \"DIREPL_STATUS\" = \'W\' AND (\"DIREPL_TYPE\" = \'U\' OR \"DIREPL_TYPE\" = \'D\' ) "
+    wheresnippet = " \"DIREPL_STATUS\" = \'W\' AND ("
+    if att['insert_type'] :
+        wheresnippet += " \"DIREPL_TYPE\" = \'I\' OR "
+    if att['update_type']:
+        wheresnippet += " \"DIREPL_TYPE\" = \'U\' OR "
+    if att['delete_type']:
+        wheresnippet += " \"DIREPL_TYPE\" = \'D\' OR "
+    wheresnippet = wheresnippet[:-3] + ') '
 
+    table = att['schema_name'] + '.' + att['table_name']
     if  api.config.use_package_id :
-        update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
-                     '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
+        sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\' WHERE ' \
                      '\"DIREPL_PACKAGEID\" = (SELECT min(\"DIREPL_PACKAGEID\") ' \
                      'FROM {table} WHERE  {ws}) AND {ws}' \
-            .format(table=att['replication_table'], pid = att['pid'],ws = wheresnippet)
+            .format(table=table, pid = att['pid'],ws = wheresnippet)
     else :
-        raise ValueError('Not implemented yet')
-        update_sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\', '\
-                     '\"DIREPL_UPDATED\" =  CURRENT_UTCTIMESTAMP WHERE ' \
-                     '\"DIREPL_UPDATED\" <= (SELECT NTH_VALUE("DIREPL_UPDATED", {psize} ORDER BY "DIREPL_UPDATED" ASC) ' \
-                     'FROM {table} WHERE {ws} ) AND {ws} ' \
-            .format(table=att['replication_table'], pid = att['pid'],ws = wheresnippet,psize = api.config.package_size)
+        sql = 'UPDATE {table} SET \"DIREPL_STATUS\" = \'B\', \"DIREPL_PID\" = \'{pid}\' WHERE  {ws}' \
+            .format(table=table, pid = att['pid'],ws = wheresnippet)
 
-    logger.info('Update statement: {}'.format(update_sql))
-    att['update_sql'] = update_sql
+    logger.info('Update statement: {}'.format(sql))
+    att['sql'] = sql
 
-    logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
 
-    #api.send(outports[1]['name'], update_sql)
-    api.send(outports[1]['name'], api.Message(attributes=att,body=update_sql))
+    api.send(outports[1]['name'], api.Message(attributes=att,body=sql))
 
     log = log_stream.getvalue()
     if len(log) > 0 :
@@ -113,8 +117,8 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 
 def test_operator():
 
-    msg = api.Message(attributes={'packageid':4711,'replication_table':'repl_table','base_table':'repl_table','latency':30,\
-                                  'append_mode' : 'I', 'data_outcome':True},body='')
+    msg = api.Message(attributes={'packageid':4711,'table_name':'repl_table','schema_name':'schema',\
+                                  'data_outcome':True},body='')
     process(msg)
 
     for msg in api.queue :

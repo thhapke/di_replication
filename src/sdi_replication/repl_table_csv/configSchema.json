@@ -19,6 +19,11 @@
             "description": "Drop header (not only for the first run).",
             "type": "boolean"
         },
+        "only_header": {
+            "title": "Only header",
+            "description": "Only header (for preparation purpose).",
+            "type": "boolean"
+        },
         "drop_columns": {
             "title": "Drop Columns",
             "description": "List of columns to drop.",
