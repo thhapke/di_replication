@@ -84,12 +84,6 @@ def process(msg) :
         logger.error(err_statement)
         raise ValueError(err_statement)
 
-    file_path_att = api.config.file_path_att
-    if not file_path_att in 'CPB':
-        err_statement = "File path attribute wrongly set (C or P or B) not  {}!".format(api.config.file_path_att)
-        logger.error(err_statement)
-        raise ValueError(err_statement)
-
     criteria_match = False
     while (not criteria_match):
         if file_index == len(files_list):
@@ -97,6 +91,10 @@ def process(msg) :
             api.send(outports[0]['name'], log_stream.getvalue())
             api.send(outports[2]['name'], api.Message(attributes=att, body=None))
             return 0
+
+        file_path_att = api.config.file_path_att
+        if not file_path_att in 'CPB':
+            logger.error("File path attribute wrongly set (C or P or B) not  {}!".format(api.config.file_path_att))
 
         fpa_criteria = True
         if file_path_att == 'C' and len(files_list[file_index]['consistency_file']) > 0:
@@ -157,8 +155,8 @@ outports = [{'name': 'log', 'type': 'string',"description":"Logging data"}, \
             {'name': 'limit', 'type': 'message',"description":"Limit"}]
 
 
-#api.set_port_callback(inports[0]['name'], on_files_process)
-#api.set_port_callback(inports[1]['name'], process)
+api.set_port_callback(inports[0]['name'], on_files_process)
+api.set_port_callback(inports[1]['name'], process)
 
 
 def test_operator() :
@@ -220,16 +218,4 @@ def test_operator() :
     for m in api.queue :
         print(m.attributes)
         print(m.body)
-
-if __name__ == '__main__':
-    test_operator()
-    if True:
-        subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
-        gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
-        solution_name = api.config.operator_name + '_' + api.config.version
-        subprocess.run(["vctl", "solution", "bundle",'../../../solution/operators/sdi_replication_' + api.config.version, \
-                        "-t", solution_name])
-        subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
-
-
 

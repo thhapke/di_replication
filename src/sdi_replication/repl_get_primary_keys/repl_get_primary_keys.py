@@ -2,7 +2,7 @@ import io
 
 import os
 import time
-
+import pandas as pd
 
 
 import subprocess
@@ -51,11 +51,10 @@ def process(msg) :
     att['operator'] = 'repl_get_primary_keys'
 
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
-    logger.info("Process started. Logging level: {}".format(logger.level))
-    time_monitor = tp.progress()
 
-    # header = [c["name"] for c in msg.attributes['table']['columns']]
-    repl_tables = [{"TABLE": r[0], "LATENCY": r[1]} for r in msg.body]
+    header = [c["name"] for c in msg.attributes['table']['columns']]
+    df = pd.DataFrame(msg.body,columns=header)
+    repl_tables = df['TABLE'].values
 
     # case no repl tables provided
     if len(repl_tables) == 0 :
@@ -72,9 +71,9 @@ def process(msg) :
         att_table['message.lastBatch'] = lastbatch
 
         # split table from schema
-        if '.' in t['TABLE']:
-            att_table['table_name'] = t['TABLE'].split('.')[1]
-            att_table['schema_name'] = t['TABLE'].split('.')[0]
+        if '.' in t:
+            att_table['table_name'] = t.split('.')[1]
+            att_table['schema_name'] = t.split('.')[0]
         else:
             statment = 'No \"SCHEMA\" detected in table name!'
             logger.error(statment)
@@ -90,7 +89,6 @@ def process(msg) :
         log_stream.seek(0)
         log_stream.truncate()
 
-    logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
     api.send(outports[0]['name'], log_stream.getvalue())
 
 inports = [{'name': 'tables', 'type': 'message.table',"description":"List of tables"}]
@@ -115,9 +113,10 @@ def test_operator() :
     msg = api.Message(attributes=att, body=data)
     process(msg)
 
-    for m in api.queue :
-        print(m.attributes)
-        print(m.body)
+    for m in api.queue :    header = [c["name"] for c in msg.attributes['table']['columns']]
+    df = pd.DataFrame(msg.body,columns=header)
+    print(m.attributes)
+    print(m.body)
 
 if __name__ == '__main__':
     test_operator()

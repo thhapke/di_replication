@@ -109,7 +109,7 @@ def process(msg):
         api.send(outports[0]['name'], log )
 
 
-inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 

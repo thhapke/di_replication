@@ -67,7 +67,7 @@ def process(msg):
         table_collector[schema_name] = dict()
     if not table_name in table_collector[schema_name] :
         table_collector[schema_name][table_name] = {'dir':dir_name,'update_files':[],'base_file':'', 'schema_name':schema_name,\
-                                                    'table_name':table_name,'key_file':'','consistency_file':'','misc':[]}
+                                                    'table_name':table_name,'primary_key_file':'','consistency_file':'','misc':[]}
 
 
     if filename == (table_name + '.csv') :
@@ -94,8 +94,9 @@ def process(msg):
         msg = api.Message(attributes=att, body=files)
         api.send(outports[1]['name'], msg )
 
-    api.send(outports[0]['name'], log_stream.getvalue())
-
+    log = log_stream.getvalue()
+    if len(log)>0 :
+        api.send(outports[0]['name'], log_stream.getvalue())
 
 inports = [{'name': 'files', 'type': 'message.file', "description": "List of files"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \

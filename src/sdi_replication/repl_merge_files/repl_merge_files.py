@@ -18,6 +18,7 @@ except NameError:
     class api:
 
         queue = list()
+        queue_sql = list()
         class Message:
             def __init__(self,body = None,attributes = ""):
                 self.body = body
@@ -26,15 +27,17 @@ except NameError:
         def send(port,msg) :
             if port == outports[1]['name'] :
                 api.queue.append(msg)
+            elif port == outports[2]['name'] :
+                api.queue_sql.append(msg)
 
         class config:
             ## Meta data
             config_params = dict()
             tags = {'sdi_utils':''}
             version = "0.0.1"
-            operator_name = 'repl_update_files'
-            operator_description = "Update Files"
-            operator_description_long = "Merges all the update files with the base file."
+            operator_name = 'repl_merge_files'
+            operator_description = "Merge Files"
+            operator_description_long = "Merges all update files with the target file."
             add_readme = dict()
             debug_mode = True
             config_params['debug_mode'] = {'title': 'Debug mode',
@@ -49,7 +52,7 @@ def process(msg):
     global df
 
     att = dict(msg.attributes)
-    att['operator'] = 'repl_update_files'
+    att['operator'] = 'repl_merge_files'
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     csv_io = io.BytesIO(msg.body)
@@ -72,19 +75,40 @@ def process(msg):
 
         # prepare for saving
         df = df[sorted(df.columns)]
+        if df.empty :
+            raise ValueError('DataFrame is empty - Avoiding to create empty file!')
+
         csv = df.to_csv(index=False)
         att['file']['path'] = os.path.join(att['current_file']['dir'], att['current_file']['base_file'])
         api.send(outports[1]['name'],api.Message(attributes=att, body=csv))
 
-    else:
-        api.send(outports[1]['name'], api.Message(attributes=att, body=''))
+        # checksum
+        repos_table = att['table_repository'] if 'table_repository' in att else ''
+        checksum_col = att['checksum_col'] if 'checksum_col' in att else ''
+        if not repos_table or not checksum_col :
+            logger.warning('Checksum not setup checksum_col: {}  repository table: {}'.format(checksum_col,repos_table))
+        else :
+            checksum = df[checksum_col].sum()
+            num_rows = df.shape[0]
 
-    api.send(outports[0]['name'], log_stream.getvalue())
+            table = att['current_file']['schema_name'] + '.' +  att['current_file']['table_name']
+            sql = 'UPDATE {repos_table} SET \"FILE_CHECKSUM\" = {cs}, \"FILE_ROWS\" = {nr}, \"FILE_UPDATED\" = CURRENT_UTCTIMESTAMP ' \
+            ' WHERE \"TABLE\"  = \'{table}\' '.format(cs=checksum,nr = num_rows,repos_table = repos_table,table = table)
+            logger.info("SQL statement for consistency update: {}".format(sql))
+            att['sql'] = sql
+            api.send(outports[3]['name'],api.Message(attributes=att, body=sql))
+    else:
+        api.send(outports[2]['name'], api.Message(attributes=att, body=''))
+
+    log = log_stream.getvalue()
+    if len(log)>0 :
+        api.send(outports[0]['name'], log_stream.getvalue())
 
 inports = [{'name': 'data', 'type': 'message.file', "description": "Input Data as csv"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'csv', 'type': 'message.file', "description": "Output data as csv"},
-            {'name': 'trigger', 'type': 'message.file', "description": "Trigger for next file"}]
+            {'name': 'next', 'type': 'message.file', "description": "Next file"},
+            {'name': 'consistency', 'type': 'message', "description": "sql consistency update"}]
 
 
 # api.set_port_callback(inports[0]['name'], process)
@@ -92,7 +116,8 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 
 def test_operator() :
     att = {'operator': 'collect_files', 'file': {'path': '/adbd/abd.csv'},'current_primary_keys':['INDEX'],\
-           'message.last_update_file':False}
+           'message.last_update_file':False,'checksum_col':'INDEX','repos_table':'REPLICATION.TEST_TABLES_REPOS', 'schema_name':'REPLICATION',\
+           'table_name':'TEST_TABLE_0'}
     att['current_file'] = {
             "dir": "/replication/REPLICATION/TEST_TABLE_17",
             "update_files": [
@@ -128,6 +153,9 @@ def test_operator() :
     process(msg_base)
 
     for q in api.queue :
+        print(q.body)
+
+    for q in api.queue_sql :
         print(q.body)
 
 

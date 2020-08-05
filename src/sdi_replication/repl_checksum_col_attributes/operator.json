@@ -1,5 +1,5 @@
 {
-    "description": "Repl. Block",
+    "description": "Checksum Column to Attributes",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -17,18 +17,16 @@
         {
             "name": "msg",
             "type": "message",
-            "description": "msg with sql statement"
+            "description": "msg"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_block.configSchema.json",
-        "script": "file://repl_block.py",
-        "debug_mode": true,
-        "use_package_id": false,
-        "change_types": "UD"
+        "$type": "http://sap.com/vflow/sdi_replication.repl_checksum_col_attributes.configSchema.json",
+        "script": "file://repl_checksum_col_attributes.py",
+        "debug_mode": true
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_block.svg"
+    "iconsrc": "repl_checksum_col_attributes.svg"
 }

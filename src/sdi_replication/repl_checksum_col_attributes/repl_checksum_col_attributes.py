@@ -6,6 +6,7 @@ import sdi_utils.tprogress as tp
 import subprocess
 import logging
 import os
+import random
 from datetime import datetime, timezone
 import pandas as pd
 
@@ -30,10 +31,10 @@ except NameError:
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_select'
-            operator_description = "Repl. Select"
+            operator_name = 'repl_checksum_col_attributes'
+            operator_description = "Checksum Column to Attributes"
 
-            operator_description_long = "Creates SELECT SQL-statement for replication."
+            operator_description_long = "Save checksum column to attributes."
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -44,50 +45,48 @@ except NameError:
 
 
 
-def process(msg):
 
+def process(msg):
     att = dict(msg.attributes)
-    att['operator'] = 'repl_select'
+    att['operator'] = 'repl_checksum_col_attributes'
 
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
-    logger.info("Process started. Logging level: {}".format(logger.level))
-    logger.debug('Attributes: {} - {}'.format(str(msg.attributes),str(att)))
+    if msg.body == None:
+        logger.warning('No checksum column found: {} (Solution: file not in table repository)'.format(att))
+        api.send(outports[0]['name'], log_stream.getvalue())
+        att['checksum_col'] = ''
+    else:
+        att['checksum_col'] = msg.body[0][0]
 
-    sql = 'SELECT * FROM {table} WHERE \"DIREPL_STATUS\" = \'B\' AND  \"DIREPL_PID\" = \'{pid}\' '.\
-        format(table=att['replication_table'],pid= att['pid'])
-    att['sql'] = sql
-    msg = api.Message(attributes=att,body = sql)
-
-    logger.info('SELECT statement: {}'.format(sql))
-
-    api.send(outports[1]['name'], msg)
+   # api.send(outports[1]['name'], update_sql)
+    api.send(outports[1]['name'], api.Message(attributes=att, body=msg.body))
 
     log = log_stream.getvalue()
-    if len(log) > 0 :
-        api.send(outports[0]['name'], log )
+    if len(log) > 0:
+        api.send(outports[0]['name'], log)
 
 
-inports = [{'name': 'trigger', 'type': 'message.table', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'msg', 'type': 'message', "description": "message with sql statement"}]
+            {'name': 'msg', 'type': 'message.*', "description": "msg"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
 
-    msg = api.Message(attributes={'pid': 123123213, 'replication_table':'REPL_TABLE','base_table':'REPL_TABLE','latency':30,'data_outcome':True},body='')
+    msg = api.Message(attributes={'packageid':4711,'table_name':'repl_table','base_table':'repl_table','latency':30,\
+                                  'append_mode' : 'I', 'data_outcome':True, 'schema_name':'REPLICATION'},body=[['INDEX']])
     process(msg)
 
-    for m in api.queue:
-        print('Attributes: \n{}'.format(m.attributes))
-        print('Body: \n{}'.format(m.body))
+    for msg in api.queue :
+        print(msg.attributes)
+        print(msg.body)
 
 
 if __name__ == '__main__':
     test_operator()
     if True:
-        print(os.getcwd())
         subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version

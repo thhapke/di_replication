@@ -56,7 +56,10 @@ def process(msg):
 
     msg = api.Message(attributes=att, body=att['current_file']['table_name'])
     api.send(outports[1]['name'], msg)
-    api.send(outports[0]['name'], log_stream.getvalue())
+
+    log = log_stream.getvalue()
+    if len(log)>0 :
+        api.send(outports[0]['name'], log_stream.getvalue())
 
 inports = [{'name': 'input', 'type': 'message.file', "description": "Input"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \

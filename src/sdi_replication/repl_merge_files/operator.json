@@ -1,5 +1,5 @@
 {
-    "description": "Update Files",
+    "description": "Merge Files",
     "component": "com.sap.system.python3Operator",
     "inports": [
         {
@@ -20,18 +20,23 @@
             "description": "Output data as csv"
         },
         {
-            "name": "trigger",
+            "name": "next",
             "type": "message.file",
-            "description": "Trigger for next file"
+            "description": "Next file"
+        },
+        {
+            "name": "consistency",
+            "type": "message",
+            "description": "sql consistency update"
         }
     ],
     "config": {
-        "$type": "http://sap.com/vflow/sdi_replication.repl_update_files.configSchema.json",
-        "script": "file://repl_update_files.py",
+        "$type": "http://sap.com/vflow/sdi_replication.repl_merge_files.configSchema.json",
+        "script": "file://repl_merge_files.py",
         "debug_mode": true
     },
     "tags": {
         "sdi_utils": ""
     },
-    "iconsrc": "repl_update_files.svg"
+    "iconsrc": "repl_merge_files.svg"
 }
