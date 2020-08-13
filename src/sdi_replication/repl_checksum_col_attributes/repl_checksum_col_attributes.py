@@ -43,7 +43,10 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-
+            file_path_att = 'P'
+            config_params['file_path_att'] = {'title': 'File Path Attribute (B/P)',
+                                           'description': 'Set File Path Attribute (B-ase or P-rimary Key)',
+                                           'type': 'string'}
 
 
 def process(msg):
@@ -58,6 +61,16 @@ def process(msg):
         att['checksum_col'] = ''
     else:
         att['checksum_col'] = msg.body[0][0]
+
+    file_path_att = api.config.file_path_att
+    if file_path_att == 'P' and len(att['current_file']['primary_key_file']) > 0:
+        att['file']['path'] = os.path.join(att['current_file']['dir'], att['current_file']['primary_key_file'])
+    elif file_path_att == 'B' and len(att['current_file']['base_file']) > 0:
+        att['file']['path'] = os.path.join(att['current_file']['dir'], att['current_file']['base_file'])
+    else:
+        err_statement = "File path attribute wrongly set (P or B) not  {}!".format(api.config.file_path_att)
+        logger.error(err_statement)
+        raise ValueError(err_statement)
 
    # api.send(outports[1]['name'], update_sql)
     api.send(outports[1]['name'], api.Message(attributes=att, body=msg.body))
@@ -76,7 +89,10 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 def test_operator():
 
     msg = api.Message(attributes={'packageid':4711,'table_name':'repl_table','base_table':'repl_table','latency':30,\
-                                  'append_mode' : 'I', 'data_outcome':True, 'schema_name':'REPLICATION'},body=[['INDEX']])
+                                  'append_mode' : 'I', 'data_outcome':True, 'schema_name':'REPLICATION',\
+                                  'file':{'path':'/replication/TEST_TABLE_0.csv'},
+                                  'current_file':{'primary_key_file':'table_primary_key.csv','base_file':'TEST_TABLE_0',\
+                                                  'dir':'/replication/'}},body=[['INDEX']])
     process(msg)
 
     for msg in api.queue :

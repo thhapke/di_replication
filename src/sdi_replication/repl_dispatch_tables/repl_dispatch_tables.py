@@ -2,6 +2,7 @@ import io
 
 import os
 import time
+import pandas as pd
 
 
 
@@ -30,7 +31,7 @@ except NameError:
         class config:
             ## Meta data
             config_params = dict()
-            tags = {'sdi_utils':''}
+            tags = {'sdi_utils':'', 'pandas':''}
             version = "0.1.0"
 
             operator_description = "Dispatch Tables"
@@ -60,7 +61,7 @@ except NameError:
 
 
 
-repl_tables = list()
+df_tables = pd.DataFrame()
 pointer = 0
 no_changes_counter = 0
 num_roundtrips = 0
@@ -68,19 +69,19 @@ num_batch = 1
 first_call = True
 
 def set_replication_tables(msg) :
-    global repl_tables
+    global df_tables
     global first_call
     global num_batch
 
-    # header = [c["name"] for c in msg.attributes['table']['columns']]
-    repl_tables = [r[0] for r in msg.body]
+    header = [c["name"] for c in msg.attributes['table']['columns']]
+    df_tables = pd.DataFrame(msg.body,columns=header)
 
-    att = {'num_tables':len(repl_tables),'data_outcome':False,'num_batch':num_batch,'table_repository': msg.attributes['table']['name']}
-    process(api.Message(attributes=att,body=repl_tables))
+    att = {'num_tables':df_tables.shape[0],'data_outcome':False,'num_batch':num_batch,'table_repository': msg.attributes['table']['name']}
+    process(api.Message(attributes=att,body=df_tables))
 
 def process(msg) :
 
-    global repl_tables
+    global df_tables
     global pointer
     global no_changes_counter
     global num_roundtrips
@@ -92,10 +93,9 @@ def process(msg) :
     att['operator'] = 'repl_dispatch_tables'
 
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
-    #logger.debug('Attributes: {} - {}'.format(str(msg.attributes),str(att)))
 
     # case no repl tables provided
-    if len(repl_tables) == 0 :
+    if df_tables.empty :
         logger.warning('No replication tables yet provided!')
         api.send(outports[0]['name'], log_stream.getvalue())
         return 0
@@ -106,7 +106,7 @@ def process(msg) :
         no_changes_counter =  0
 
     # end pipeline if there were no changes in all tables AND happened more than round_trips_to_stop
-    if no_changes_counter >= api.config.round_trips_to_stop * len(repl_tables) :
+    if no_changes_counter >= api.config.round_trips_to_stop * df_tables.shape[0] :
         logger.info('Number of roundtrips without changes: {} - ending loop'.format(no_changes_counter))
         api.send(outports[0]['name'], log_stream.getvalue())
         msg = api.Message(attributes=att, body=no_changes_counter)
@@ -118,35 +118,35 @@ def process(msg) :
         if num_roundtrips > 1:
             logger.info('******** {} **********'.format(num_roundtrips))
             logger.info(
-                'Roundtrip completed: {} tables - {} unchanged roundtrips'.format(len(repl_tables), no_changes_counter))
-            if no_changes_counter >= len(repl_tables) :
+                'Roundtrip completed: {} tables - {} unchanged roundtrips'.format(df_tables.shape[0], no_changes_counter))
+            if no_changes_counter >= df_tables.shape[0] :
                 logger.info('Goes idle due to no changes: {} s'.format(api.config.periodicity))
                 time.sleep(api.config.periodicity)
         num_roundtrips += 1
 
 
-    repl_table = repl_tables[pointer]
+    repl_table = df_tables.iloc[pointer]
 
-    att['replication_table'] = repl_table
+    att['replication_table'] = repl_table['TABLE']
+    att['checksum_col'] = repl_table['CHECKSUM_COL']
     # split table from schema
-    if '.' in repl_table  :
-        att['table_name'] = repl_table.split('.')[1]
-        att['schema_name'] = repl_table.split('.')[0]
+    if '.' in repl_table['TABLE']  :
+        att['table_name'] = repl_table['TABLE'].split('.')[1]
+        att['schema_name'] = repl_table['TABLE'].split('.')[0]
     else :
-        att['table_name'] = repl_table
-    table_msg = api.Message(attributes= att, \
-        body = repl_table)
+        att['table_name'] = repl_table['TABLE']
+    table_msg = api.Message(attributes= att, body = repl_table)
     api.send(outports[1]['name'], table_msg)
 
     logger.info('Dispatch table: {}  ({}/{})'.format(att['replication_table'], \
-            no_changes_counter, api.config.round_trips_to_stop * len(repl_tables)))
+            no_changes_counter, api.config.round_trips_to_stop * df_tables.shape[0]))
     api.send(outports[0]['name'], log_stream.getvalue())
 
     # counter is always incremented when all roundtrips are counted
     if api.config.count_all_roundtrips == True or att['data_outcome'] == False:
         no_changes_counter += 1
 
-    pointer = (pointer + 1) % len(repl_tables)
+    pointer = (pointer + 1) % df_tables.shape[0]
 
 
 

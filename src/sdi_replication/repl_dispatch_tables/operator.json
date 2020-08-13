@@ -39,7 +39,8 @@
         "count_all_roundtrips": false
     },
     "tags": {
-        "sdi_utils": ""
+        "sdi_utils": "",
+        "pandas": ""
     },
     "iconsrc": "repl_dispatch_tables.svg"
 }

@@ -7,11 +7,8 @@ import subprocess
 import logging
 import os
 import random
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import pandas as pd
-import numpy as np
-
-pd.set_option('mode.chained_assignment',None)
 
 try:
     api
@@ -29,16 +26,15 @@ except NameError:
             if port == outports[1]['name']:
                 api.queue.append(msg)
 
-
         class config:
             ## Meta data
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_add_test_tables'
-            operator_description = "Add Test Tables to Repository Table"
+            operator_name = 'repl_table_profile'
+            operator_description = "Table Profile"
 
-            operator_description_long = "Add Test Tables to Repository Table (SQL Statement)"
+            operator_description_long = "Save table profile to table repository."
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -48,49 +44,54 @@ except NameError:
                                            'type': 'boolean'}
 
 
+
+
 def process(msg):
 
     att = dict(msg.attributes)
-    att['operator'] = 'repl_add_test_tables'
+    att['operator'] = 'repl_table_profile'
+
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
-    logger.info("Process started. Logging level: {}".format(logger.level))
-    time_monitor = tp.progress()
+    table_repos = att['table_repository']
+    table = att['replication_table']
+    checksum = att['checksum_col']
 
-    rec = [[att['table']['name'],'NUMBER',datetime.now(timezone.utc).isoformat(),0]]
+    sql = 'UPDATE {table_repos} SET \"TABLE_CHECKSUM\" = (SELECT SUM(\"{csc}\") FROM {table}), '\
+          ' \"TABLE_ROWS\" = (SELECT COUNT(*) FROM {table}), \"TABLE_UPDATED\" = CURRENT_UTCTIMESTAMP ' \
+          ' WHERE \"TABLE\" = \'{table}\' ' .format(table=table, table_repos = table_repos,csc = checksum)
 
-    att['table'] = {"columns": [{"class": "string", "name": "TABLE", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}, \
-                                {"class": "string", "name": "CHECKSUM_COL", "nullable": True, "size": 50,"type": {"hana": "NVARCHAR"}}], \
-                   "version": 1}
+    logger.info('Update statement: {}'.format(sql))
+    att['sql'] = sql
 
-    api.send(outports[1]['name'], api.Message(attributes=att, body=rec))
-    api.send(outports[0]['name'], log_stream.getvalue())
-    log_stream.seek(0)
-    log_stream.truncate()
+    api.send(outports[1]['name'], api.Message(attributes=att,body=sql))
 
-    logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
-    api.send(outports[0]['name'], log_stream.getvalue())
+    log = log_stream.getvalue()
+    if len(log) > 0 :
+        api.send(outports[0]['name'], log )
 
 
-inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'data', 'type': 'message.table', "description": "data"}]
+            {'name': 'msg', 'type': 'message', "description": "msg with sql statement"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
-    msg = api.Message(attributes={'packageid':4711,'table':{'name':'repl_table'}},body='')
+
+    msg = api.Message(attributes={'packageid':4711,'table_name':'repl_table','schema_name':'schema',\
+                                  'data_outcome':True,'table_repository':'TEST_TABLES_REPOS', \
+                                  'checksum_col':'NUMBER','replication_table':'REPLICATION.TEST_TABLE_0'},body='')
     process(msg)
 
-    for st in api.queue :
-        print(st.attributes)
-        print(st.body)
+    for msg in api.queue :
+        print(msg.attributes)
+        print(msg.body)
 
 
 if __name__ == '__main__':
     test_operator()
     if True:
-        print(os.getcwd())
         subprocess.run(["rm", '-r','../../../solution/operators/sdi_replication_' + api.config.version])
         gs.gensolution(os.path.realpath(__file__), api.config, inports, outports)
         solution_name = api.config.operator_name + '_' + api.config.version

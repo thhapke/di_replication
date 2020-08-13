@@ -11,7 +11,6 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 import numpy as np
 
-pd.set_option('mode.chained_assignment',None)
 
 try:
     api
@@ -36,10 +35,10 @@ except NameError:
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_create_test_tables'
-            operator_description = "Create Test Tables"
+            operator_name = 'repl_max_index_test_tables'
+            operator_description = "Max Index Test Tables"
 
-            operator_description_long = "Create Test Tables."
+            operator_description_long = "SQL for maximum index."
             add_readme = dict()
             add_readme["References"] = ""
 
@@ -48,60 +47,22 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-            num_tables = 10
-            config_params['num_tables'] = {'title': 'Number of tables',
-                                           'description': 'Number of tables.',
-                                           'type': 'integer'}
-
-            base_table_name = 'REPLICATION.TEST_TABLE'
-            config_params['base_table_name'] = {'title': 'Base Table Name',
-                                           'description': 'Base Table Name.',
-                                           'type': 'string'}
-
-
 def process(msg):
 
-    operator_name = 'repl_create_test_tables'
+    att = dict(msg.attributes)
+    operator_name = 'repl_max_index_test_tables'
     logger, log_stream = slog.set_logging(operator_name, loglevel=api.config.debug_mode)
 
-    logger.info("Process started. Logging level: {}".format(logger.level))
-    time_monitor = tp.progress()
+    sql = 'SELECT MAX("INDEX") FROM {table}'.format(table = att['replication_table'])
 
-    for i in range (0,api.config.num_tables) :
+    logger.info('SQL statement: {}'.format(sql))
+    att['sql'] = sql
 
-        table_name = api.config.base_table_name + '_' + str(i)
-        lastbatch = False if not i == api.config.num_tables - 1 else True
-
-        ### DROP
-
-        att_drop = {'table':{'name':table_name},'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':'DROP'}
-        logger.info("Drop table:")
-        drop_sql = "DROP TABLE {table}".format(table = table_name)
-        api.send(outports[1]['name'], api.Message(attributes=att_drop, body=drop_sql))
-        api.send(outports[0]['name'], log_stream.getvalue())
-        log_stream.seek(0)
-        log_stream.truncate()
-
-        ### CREATE
-
-        logger.info('Create Table: ')
-
-        create_sql = "CREATE COLUMN TABLE {table} (\"INDEX\" BIGINT , \"NUMBER\" BIGINT,  \"DATE\" DATE,"\
-                     "\"DIREPL_PACKAGEID\" BIGINT, \"DIREPL_PID\" BIGINT , \"DIREPL_UPDATED\" LONGDATE, " \
-                     "\"DIREPL_STATUS\" NVARCHAR(1), \"DIREPL_TYPE\" NVARCHAR(1), " \
-                     "PRIMARY KEY (\"INDEX\"));".format(table = table_name )
-
-        att_create = {"table_name":table_name,'message.batchIndex':i,'message.lastBatch':lastbatch,'sql':create_sql}
-        api.send(outports[1]['name'], api.Message(attributes=att_create, body=create_sql))
-        api.send(outports[0]['name'], log_stream.getvalue())
-        log_stream.seek(0)
-        log_stream.truncate()
-
-    logger.debug('Process ended: {}'.format(time_monitor.elapsed_time()))
+    api.send(outports[1]['name'], api.Message(attributes=att,body=sql))
     api.send(outports[0]['name'], log_stream.getvalue())
 
 
-inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
             {'name': 'sql', 'type': 'message', "description": "msg with sql"}]
 

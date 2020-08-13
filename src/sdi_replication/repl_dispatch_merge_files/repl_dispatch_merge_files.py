@@ -51,6 +51,7 @@ def on_target(msg) :
     att = dict(msg.attributes)
     att['operator'] = 'repl_dispatch_merge_files_on_target'
     att['message.last_update_file'] = False
+    att['target_file'] = True
     api.send(outports[1]['name'], api.Message(attributes=att, body=msg.body))
 
     # reset when base table received
@@ -75,6 +76,7 @@ def on_next(msg) :
     att['message.index_update'] = file_index
     att['message.index_num'] = len(files_list)
     att['message.last_update_file'] = False
+    att['target_file'] = False
     if file_index == len(files_list) - 1 :
         att['message.last_update_file'] = True
     if file_index >= len(files_list) :

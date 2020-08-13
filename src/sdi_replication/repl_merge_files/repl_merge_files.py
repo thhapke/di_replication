@@ -56,10 +56,15 @@ def process(msg):
     logger, log_stream = slog.set_logging(att['operator'], loglevel=api.config.debug_mode)
 
     csv_io = io.BytesIO(msg.body)
-    df = df.append(pd.read_csv(csv_io), ignore_index=True)
+    if att['target_file'] :
+        df = pd.read_csv(csv_io)
+    else :
+        df = df.append(pd.read_csv(csv_io), ignore_index=True)
+
+    logger.debug('Update file: {} ({})'.format(df.shape[0],att['file']['path']))
 
     if att['message.last_update_file']:
-
+        logger.debug('Last Update file - merge')
         #  cases:
         #  I,U: normal, U,I : should not happen, sth went wrong with original table (no test)
         #  I,D: normal, D,I : either sth went wrong in the repl. table or new record (no test)
@@ -116,8 +121,8 @@ outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
 
 def test_operator() :
     att = {'operator': 'collect_files', 'file': {'path': '/adbd/abd.csv'},'current_primary_keys':['INDEX'],\
-           'message.last_update_file':False,'checksum_col':'INDEX','repos_table':'REPLICATION.TEST_TABLES_REPOS', 'schema_name':'REPLICATION',\
-           'table_name':'TEST_TABLE_0'}
+           'message.last_update_file':False,'checksum_col':'INDEX','table_repository':'REPLICATION.TEST_TABLES_REPOS', 'schema_name':'REPLICATION',\
+           'table_name':'TEST_TABLE_0','target_file':True}
     att['current_file'] = {
             "dir": "/replication/REPLICATION/TEST_TABLE_17",
             "update_files": [
@@ -130,27 +135,42 @@ def test_operator() :
             "consistency_file": "",
             "misc": []
         }
-    csv1 = r'''DIREPL_PACKAGEID,DIREPL_PID,DIREPL_TYPE,DIREPL_UPDATED,INDEX,INT_NUM
-0,1,U,2020-07-27T09:38:46.038Z,0,0
-0,1,U,2020-07-27T09:38:46.038Z,1,1
-1,1,U,2020-07-27T09:38:46.038Z,2,2
-1,1,U,2020-07-27T09:38:47.038Z,3,3
-4,1,U,2020-07-27T09:38:48.038Z,4,4
-0,1,I,2020-07-27T09:38:49.657Z,5,5'''
+    csv1 = r'''DIREPL_TYPE,DIREPL_UPDATED,INDEX,NUMBER
+I,2020-07-27T09:38:46.038Z,0,0
+I,2020-07-27T09:38:46.038Z,1,1
+I,2020-07-27T09:38:46.038Z,2,2
+I,2020-07-27T09:38:47.038Z,3,3
+I,2020-07-27T09:38:48.038Z,4,4
+I,2020-07-27T09:38:49.657Z,5,5'''
     csv1 = str.encode(csv1)
-    csv2 = r'''DIREPL_PACKAGEID,DIREPL_PID,DIREPL_TYPE,DIREPL_UPDATED,INDEX,INT_NUM
-0,2,U,2020-07-27T09:39:06.657Z,6,6
-3,2,I,2020-07-27T09:39:09.657Z,7,7
-4,2,D,2020-07-27T09:39:06.657Z,0,0
-4,2,U,2020-07-27T09:39:06.657Z,1,2
-4,2,D,2020-07-27T09:36:06.657Z,3,3'''
+    csv2 = r'''DIREPL_TYPE,DIREPL_UPDATED,INDEX,NUMBER
+U,2020-07-27T09:39:06.657Z,6,6
+U,2020-07-27T09:39:09.657Z,7,7
+U,2020-07-27T09:39:06.657Z,8,0
+U,2020-07-27T09:39:06.657Z,9,2
+U,2020-07-27T09:39:06.657Z,10,3'''
     csv2 = str.encode(csv2)
+    csv3 = r'''DIREPL_TYPE,DIREPL_UPDATED,INDEX,NUMBER
+    U,2020-07-27T09:49:06.657Z,11,16
+    U,2020-07-27T09:49:09.657Z,12,17
+    U,2020-07-27T09:49:06.657Z,13,10
+    U,2020-07-27T09:49:06.657Z,14,12
+    U,2020-07-27T09:49:06.657Z,15,13'''
+    csv3 = str.encode(csv3)
 
-    msg_base = api.Message(attributes=att,body=csv1)
-    process(msg_base)
+    msg = api.Message(attributes=att,body=csv1)
+    process(msg)
+
+    att['file']['path'] = '/adbd/111111_abcd.csv'
+    att['target_file']= False
+    msg = api.Message(attributes=att, body=csv2)
+    process(msg)
+
+    att['file']['path'] = '/adbd/222222_abcd.csv'
     att['message.last_update_file'] =  True
-    msg_base = api.Message(attributes=att, body=csv2)
-    process(msg_base)
+    msg = api.Message(attributes=att, body=csv3)
+    process(msg)
+
 
     for q in api.queue :
         print(q.body)

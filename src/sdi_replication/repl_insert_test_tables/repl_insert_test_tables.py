@@ -36,8 +36,8 @@ except NameError:
             config_params = dict()
             version = '0.0.1'
             tags = {'sdi_utils': ''}
-            operator_name = 'repl_update_test_tables'
-            operator_description = "Update Test Tables"
+            operator_name = 'repl_insert_test_tables'
+            operator_description = "Insert Test Tables"
 
             operator_description_long = "Update test tables with incremental value."
             add_readme = dict()
@@ -48,9 +48,9 @@ except NameError:
                                            'description': 'Sending debug level information to log port',
                                            'type': 'boolean'}
 
-            modulo_factor = 2
-            config_params['modulo_factor'] = {'title': 'Modulo Factor',
-                                           'description': 'Change each row of modulo(factor) = \'0\'.',
+            num_inserts = 10
+            config_params['num_inserts'] = {'title': 'Number of inserts',
+                                           'description': 'Number of inserts.',
                                            'type': 'integer'}
 
 
@@ -62,34 +62,53 @@ except NameError:
 def process(msg):
 
     att = dict(msg.attributes)
-    operator_name = 'repl_update_test_tables'
+    operator_name = 'repl_insert_test_tables'
     logger, log_stream = slog.set_logging(operator_name, loglevel=api.config.debug_mode)
 
-    modulo_factor = api.config.modulo_factor
+    max_index = msg.body[0][0]
+    num_inserts = api.config.num_inserts
     maxn = api.config.max_random_num
-    offset = random.randint(0,modulo_factor-1)
 
-    sql = 'UPDATE {table} SET \"NUMBER\" = floor(RAND() * {maxn}), \"DIREPL_TYPE\" = \'U\', \"DIREPL_STATUS\" =  \'W\', '  \
-          ' \"DIREPL_UPDATED\" = CURRENT_UTCTIMESTAMP WHERE MOD(\"INDEX\",{mf}) = {of}' \
-        .format(table = att['replication_table'],maxn = maxn, mf= modulo_factor,of= offset)
+    col1 = np.arange(max_index+1, max_index + num_inserts+1)
+    df = pd.DataFrame(col1, columns=['INDEX']).reset_index()
+    df['NUMBER'] = np.random.randint(0, maxn, num_inserts)
+    df['DIREPL_UPDATED'] = 0
+    df['DIREPL_UPDATED'] = df['DIREPL_UPDATED'].apply(lambda x: datetime.now(timezone.utc).isoformat())
+    df['DIREPL_PID'] = 0
+    df['DIREPL_STATUS'] = 'W'
+    df['DIREPL_PACKAGEID'] = 0
+    df['DIREPL_TYPE'] = 'I'
 
-    logger.info('SQL statement: {}'.format(sql))
-    att['sql'] = sql
+    table_name = att['replication_table']
+    att['table'] = {
+        "columns": [{"class": "integer", "name": "INDEX", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "NUMBER", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "DIREPL_PACKAGEID", "nullable": False, "type": {"hana": "BIGINT"}}, \
+                    {"class": "integer", "name": "DIREPL_PID", "nullable": True, "type": {"hana": "BIGINT"}}, \
+                    {"class": "timestamp", "name": "DIREPL_UPDATED", "nullable": True,
+                     "type": {"hana": "TIMESTAMP"}}, \
+                    {"class": "string", "name": "DIREPL_STATUS", "nullable": True, "size": 1,
+                     "type": {"hana": "NVARCHAR"}}, \
+                    {"class": "string", "name": "DIREPL_TYPE", "nullable": True, "size": 1,
+                     "type": {"hana": "NVARCHAR"}}],"version": 1, "name": att['replication_table']}
+    df = df[['INDEX','NUMBER','DIREPL_PACKAGEID','DIREPL_PID','DIREPL_UPDATED','DIREPL_STATUS','DIREPL_TYPE']]
 
-    api.send(outports[1]['name'], api.Message(attributes=att,body=sql))
+    table_data = df.values.tolist()
+
+    api.send(outports[1]['name'], api.Message(attributes=att, body=table_data))
     api.send(outports[0]['name'], log_stream.getvalue())
 
 
-inports = [{'name': 'data', 'type': 'message', "description": "Input data"}]
+inports = [{'name': 'data', 'type': 'message.table', "description": "Input data"}]
 outports = [{'name': 'log', 'type': 'string', "description": "Logging data"}, \
-            {'name': 'sql', 'type': 'message', "description": "msg with sql"}]
+            {'name': 'data', 'type': 'message.table', "description": "msg with sql"}]
 
 #api.set_port_callback(inports[0]['name'], process)
 
 def test_operator():
     api.config.off_set = 2
     api.config.num_rows = 10
-    msg = api.Message(attributes={'packageid':4711,'replication_table':'repl_table'},body='')
+    msg = api.Message(attributes={'packageid':4711,'replication_table':'REPLICATION.TEST_TABLE_0'},body=[[50]])
     process(msg)
 
 
