@@ -51,7 +51,14 @@ For testing purpose I have created a pipeline that creates a specified number of
 
 The test tables are all added to a specified table repository.
 
-**Pipeline: GenerateTestTables** 
+There are also pipelines that inserts and updates the test tables and can be used for creating test scenarios including a reset after a wilful crashes/stopping of the replication pipeline.
+
+Pipeline:
+
+* **GenerateTestTables**
+* **UpdateTestTables**
+* **InsertTestTables**
+
 
 ### Object Store Structure
 
