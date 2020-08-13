@@ -166,6 +166,12 @@ As already mentioned in the previous section there is a checksum calculated that
 
 For comparison there is a pipeline that calls an sql statement for getting the same data for all tables of a repository and updates the corresponding fields.
 
+![graph](./images/consistency.png)
+
+The information which column should be used for calculating the checksum can be entered in the repository. 
+
+![graph](./images/repository.png)
+
 **Pipeline: TableProfile**
 
 ## Performance
