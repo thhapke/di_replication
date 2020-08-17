@@ -122,3 +122,4 @@ if __name__ == '__main__':
                         "-t", solution_name])
         subprocess.run(["mv", solution_name + '.zip', '../../../solution/operators'])
 
+GXqkJHt2WT
