@@ -1,5 +1,5 @@
 
-# DEPRACATED
+# DEPRECATED
 
 Now use repository [SAP Samples - Data Intelligence Replication](https://github.com/SAP-samples/data-intelligence-replication)
 
