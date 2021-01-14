@@ -1,3 +1,9 @@
+
+# DEPRACATED
+
+Now use repository [SAP Samples - Data Intelligence Replication](https://github.com/SAP-samples/data-intelligence-replication)
+
+
 # Replication with SAP Data Intelligence
 (sdi_replication) by thhapke
 
